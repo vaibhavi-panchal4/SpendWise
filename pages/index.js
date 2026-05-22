@@ -22,7 +22,9 @@ function getMonthLabel(d) {
 }
 
 export default function Home() {
-  const [user, setUser] = useState(null); // null = not chosen yet
+  //const [user, setUser] = useState(null); // null = not chosen yet
+  const [currentUser, setCurrentUser] = useState(null);
+  const [loadingUser, setLoadingUser] = useState(true);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [expenses, setExpenses] = useState([]);
   const [budget, setBudget] = useState(0);
@@ -47,6 +49,7 @@ export default function Home() {
 
   // Fetch expenses for current month
   const fetchExpenses = useCallback(async () => {
+    if (!currentUser) return;
     const start = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
       .toISOString()
       .split("T")[0];
@@ -60,33 +63,58 @@ export default function Home() {
     const { data, error } = await supabase
       .from("expenses")
       .select("*")
+      .eq("user_id", currentUser.id)
       .gte("date", start)
       .lte("date", end)
       .order("created_at", { ascending: false });
     if (!error) setExpenses(data || []);
-  }, [currentDate]);
+  }, [currentDate, currentUser]);
 
   // Fetch budget for current month
   const fetchBudget = useCallback(async () => {
-    const { data } = await supabase
+    if (!currentUser) return;
+
+    const { data, error } = await supabase
       .from("budgets")
-      .select("amount")
+      .select("*")
+      .eq("user_id", currentUser.id)
       .eq("month", monthKey)
-      .single();
-    if (data) {
-      setBudget(data.amount);
-      setBudgetInput(String(data.amount));
+      .order("updated_at", { ascending: false })
+      .limit(1);
+
+    if (error) {
+      console.log(error);
+      return;
+    }
+
+    if (data && data.length > 0) {
+      setBudget(Number(data[0].amount));
+      setBudgetInput(String(data[0].amount));
     } else {
       setBudget(0);
       setBudgetInput("");
     }
-  }, [monthKey]);
+  }, [monthKey, currentUser]);
+  useEffect(() => {
+    const getUser = async () => {
+      const { data } = await supabase.auth.getUser();
+
+      if (data.user) {
+        setCurrentUser(data.user);
+      }
+
+      setLoadingUser(false);
+    };
+
+    getUser();
+  }, []);
 
   useEffect(() => {
-    fetchExpenses();
-    fetchBudget();
-  }, [fetchExpenses, fetchBudget]);
-
+    if (currentUser) {
+      fetchExpenses();
+      fetchBudget();
+    }
+  }, [currentUser, fetchExpenses, fetchBudget]);
   // Realtime subscription
   useEffect(() => {
     const channel = supabase
@@ -112,14 +140,30 @@ export default function Home() {
   }, [fetchExpenses, fetchBudget]);
 
   const saveBudget = async (val) => {
+    if (!currentUser) return;
+
     const num = parseFloat(val) || 0;
+
     setBudget(num);
-    await supabase
-      .from("budgets")
-      .upsert(
-        { month: monthKey, amount: num, updated_at: new Date().toISOString() },
-        { onConflict: "month" },
-      );
+
+    const { error } = await supabase.from("budgets").upsert(
+      {
+        user_id: currentUser.id,
+        month: monthKey,
+        amount: num,
+        updated_at: new Date().toISOString(),
+      },
+      {
+        onConflict: "user_id,month",
+      },
+    );
+
+    if (error) {
+      console.log(error);
+      showToast("Budget save failed");
+    } else {
+      showToast("Budget saved");
+    }
   };
 
   const addExpense = async () => {
@@ -137,7 +181,7 @@ export default function Home() {
       name: expName.trim(),
       amount: amt,
       category: selectedCat,
-      added_by: user === 0 ? "you" : "him",
+      user_id: currentUser.id,
       date: new Date().toISOString().split("T")[0],
     });
     setLoading(false);
@@ -177,12 +221,12 @@ export default function Home() {
   const sortedCats = Object.entries(catTotals).sort((a, b) => b[1] - a[1]);
   const maxCatAmt = sortedCats[0]?.[1] || 1;
   const topCat = sortedCats[0];
-  const youTotal = expenses
+  /*const youTotal = expenses
     .filter((e) => e.added_by === "you")
     .reduce((s, e) => s + Number(e.amount), 0);
   const himTotal = expenses
     .filter((e) => e.added_by === "him")
-    .reduce((s, e) => s + Number(e.amount), 0);
+    .reduce((s, e) => s + Number(e.amount), 0); */
 
   const filtered =
     filterCat === "All"
@@ -190,30 +234,10 @@ export default function Home() {
       : expenses.filter((e) => e.category === filterCat);
 
   // User picker screen
-  if (user === null) {
+  /*if (user === null) {
     return (
       <>
-        <Head>
-          <style jsx global>{`
-            body {
-              margin: 0;
-              overflow-x: hidden;
-              background: #0b1020;
-              font-family: Inter, sans-serif;
-            }
-
-            * {
-              box-sizing: border-box;
-            }
-
-            @media (max-width: 768px) {
-              .mobile-stack {
-                flex-direction: column !important;
-              }
-            }
-          `}</style>
-          <title>SpendWise 💸</title>
-        </Head>
+        
         <div style={styles.orbWrap}>
           <div
             style={{
@@ -285,7 +309,54 @@ export default function Home() {
       </>
     );
   }
+*/
 
+  if (loadingUser) {
+    /*<Head>
+      <style jsx global>{`
+        body {
+          margin: 0;
+          overflow-x: hidden;
+          background: #0b1020;
+          font-family: Inter, sans-serif;
+        }
+
+        * {
+          box-sizing: border-box;
+        }
+
+        @media (max-width: 768px) {
+          .mobile-stack {
+            flex-direction: column !important;
+          }
+        }
+      `}</style>
+      <title>SpendWise 💸</title>
+    </Head>;*/
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "#0b1020",
+          color: "white",
+          fontSize: "1.2rem",
+        }}
+      >
+        Loading...
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    if (typeof window !== "undefined") {
+      window.location.href = "/login";
+    }
+
+    return null;
+  }
   return (
     <>
       <Head>
@@ -344,8 +415,14 @@ export default function Home() {
                 ›
               </button>
             </div>
-            <button style={styles.userChip} onClick={() => setUser(null)}>
-              {USERS[user]}
+            <button
+              style={styles.userChip}
+              onClick={async () => {
+                await supabase.auth.signOut();
+                window.location.href = "/login";
+              }}
+            >
+              Logout
             </button>
           </div>
         </div>
@@ -379,7 +456,7 @@ export default function Home() {
                     : "#34d399"
                   : "#f0eef8",
             },
-            {
+            /* {
               icon: "💜",
               label: "You spent",
               value: `₹${Math.round(youTotal).toLocaleString("en-IN")}`,
@@ -390,7 +467,7 @@ export default function Home() {
               label: "Him spent",
               value: `₹${Math.round(himTotal).toLocaleString("en-IN")}`,
               sub: `${expenses.filter((e) => e.added_by === "him").length} entries`,
-            },
+            },*/
           ].map((s, i) => (
             <div
               key={i}
@@ -612,7 +689,7 @@ export default function Home() {
                     day: "numeric",
                     month: "short",
                   });
-                  const isYou = e.added_by === "you";
+                  //const isYou = e.added_by === "you";
                   return (
                     <div
                       key={e.id}
@@ -652,11 +729,11 @@ export default function Home() {
                           }}
                         >
                           <span style={{ color: c.color }}>{e.category}</span>
-                          <span
+                          {/*<span
                             style={{ color: isYou ? "#a78bfa" : "#60a5fa" }}
                           >
                             {isYou ? "💜 You" : "💙 Him"}
-                          </span>
+                          </span>*/}
                         </div>
                       </div>
                       <div
