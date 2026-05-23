@@ -175,6 +175,12 @@ export default function Home() {
     }
   }, []);
 
+  // Computed
+  const total = expenses.reduce((s, e) => s + Number(e.amount), 0);
+  const remaining = budget - total;
+  const budgetPct = budget > 0 ? Math.min((total / budget) * 100, 100) : 0;
+  const budgetPctNum = budget > 0 ? Math.round((total / budget) * 100) : null;
+
   useEffect(() => {
     if (budget > 0) {
       const percent = (total / budget) * 100;
@@ -272,12 +278,6 @@ export default function Home() {
     );
     setFilterCat("All");
   };
-
-  // Computed
-  const total = expenses.reduce((s, e) => s + Number(e.amount), 0);
-  const remaining = budget - total;
-  const budgetPct = budget > 0 ? Math.min((total / budget) * 100, 100) : 0;
-  const budgetPctNum = budget > 0 ? Math.round((total / budget) * 100) : null;
 
   const catTotals = {};
   expenses.forEach((e) => {
