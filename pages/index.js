@@ -475,16 +475,19 @@ export default function Home() {
         />
       </div>
 
-      <div style={styles.app}>
+      <div style={styles.app} className="app-mobile">
         {/* Topbar */}
-        <div style={styles.topbar}>
+        <div style={styles.topbar} className="topbar-mobile">
           <div style={styles.logoSm}>
             <span style={{ color: "#ffffff" }}>spend</span>
             <span style={{ color: "#a78bfa" }}>wise</span> 💸
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div
+            className="top-actions"
+            style={{ display: "flex", alignItems: "center", gap: 10 }}
+          >
             {liveIndicator && <span style={styles.liveDot}>🟢 Live</span>}
-            <div style={styles.monthNav}>
+            <div style={styles.monthNav} className="month-nav-mobile">
               <button style={styles.navBtn} onClick={() => changeMonth(-1)}>
                 ‹
               </button>
@@ -494,6 +497,7 @@ export default function Home() {
               </button>
             </div>
             <button
+              className="logout-mobile"
               style={styles.userChip}
               onClick={async () => {
                 await supabase.auth.signOut();
@@ -506,7 +510,7 @@ export default function Home() {
         </div>
 
         {/* Stats */}
-        <div style={styles.statsGrid}>
+        <div style={styles.statsGrid} className="stats-mobile">
           {[
             {
               icon: "💸",
@@ -577,6 +581,7 @@ export default function Home() {
         {/* Budget */}
         <div style={styles.budgetSection}>
           <div
+            className="budget-mobile"
             style={{
               display: "flex",
               alignItems: "center",
@@ -585,7 +590,10 @@ export default function Home() {
             }}
           >
             <span style={styles.sectionLabel}>Monthly Budget</span>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div
+              className="top-actions"
+              style={{ display: "flex", alignItems: "center", gap: 10 }}
+            >
               <div style={{ position: "relative" }}>
                 <span
                   style={{
@@ -601,6 +609,7 @@ export default function Home() {
                 </span>
                 <input
                   style={styles.budgetInput}
+                  className="budget-input-mobile"
                   type="number"
                   placeholder="Set budget"
                   value={budgetInput}
@@ -641,7 +650,7 @@ export default function Home() {
         </div>
 
         {/* Add form */}
-        <div style={styles.addSection}>
+        <div style={styles.addSection} className="add-section-mobile">
           <div
             style={{
               display: "grid",
@@ -697,6 +706,7 @@ export default function Home() {
               ))}
             </div>
             <button
+              className="submit-mobile"
               style={{ ...styles.submitBtn, opacity: loading ? 0.5 : 1 }}
               onClick={addExpense}
               disabled={loading}
@@ -707,7 +717,7 @@ export default function Home() {
         </div>
 
         {/* Main area */}
-        <div style={styles.mainArea}>
+        <div style={styles.mainArea} className="main-mobile">
           {/* List */}
           <div>
             <div
@@ -772,6 +782,7 @@ export default function Home() {
                     <div
                       key={e.id}
                       style={styles.expItem}
+                      className="transaction-mobile"
                       onMouseEnter={(el) =>
                         (el.currentTarget.style.borderColor =
                           "rgba(255,255,255,0.13)")
@@ -796,7 +807,12 @@ export default function Home() {
                         {c.icon}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={styles.expName2}>{e.name}</div>
+                        <div
+                          style={styles.expName2}
+                          className="transaction-name-mobile"
+                        >
+                          {e.name}
+                        </div>
                         <div
                           style={{
                             fontSize: "0.72rem",
@@ -824,6 +840,7 @@ export default function Home() {
                         {dateStr}
                       </div>
                       <div
+                        className="transaction-price-mobile"
                         style={{
                           fontFamily: "'Syne',sans-serif",
                           fontWeight: 800,
@@ -861,7 +878,10 @@ export default function Home() {
             >
               <DonutChart expenses={expenses} />
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div
+              className="budget-controls-mobile"
+              style={{ display: "flex", flexDirection: "column", gap: 10 }}
+            >
               {sortedCats.map(([cat, amt]) => {
                 const c = CATS[cat] || CATS.Other;
                 const w = Math.round((amt / maxCatAmt) * 100);
@@ -933,6 +953,104 @@ export default function Home() {
 
       {/* Toast */}
       {toast && <div style={styles.toast}>{toast}</div>}
+
+      {toast && <div style={styles.toast}>{toast}</div>}
+
+      <style jsx global>{`
+        body {
+          margin: 0;
+          overflow-x: hidden;
+          font-family: Inter, sans-serif;
+          background: #0b1020;
+        }
+
+        * {
+          box-sizing: border-box;
+        }
+
+        @media (max-width: 768px) {
+          input {
+            width: 100% !important;
+          }
+
+          .topbar-mobile {
+            flex-direction: column;
+            align-items: flex-start !important;
+            gap: 14px !important;
+          }
+
+          .top-actions {
+            width: 100%;
+            display: flex;
+            gap: 10px;
+            flex-direction: column;
+          }
+
+          .month-nav-mobile {
+            width: 100% !important;
+            max-width: 100% !important;
+          }
+
+          .logout-mobile {
+            width: 100%;
+            justify-content: center;
+            text-align: center;
+          }
+
+          .stats-mobile {
+            grid-template-columns: 1fr !important;
+          }
+
+          .main-mobile {
+            grid-template-columns: 1fr !important;
+          }
+
+          .budget-mobile {
+            flex-direction: column;
+            align-items: flex-start !important;
+            gap: 12px;
+          }
+
+          .budget-controls-mobile {
+            width: 100%;
+          }
+
+          .budget-input-mobile {
+            width: 100% !important;
+          }
+
+          .transaction-mobile {
+            padding: 12px !important;
+            gap: 8px !important;
+            flex-wrap: wrap;
+          }
+
+          .transaction-name-mobile {
+            font-size: 0.8rem !important;
+          }
+
+          .transaction-price-mobile {
+            font-size: 1rem !important;
+            margin-left: auto !important;
+          }
+
+          .app-mobile {
+            padding: 0.7rem !important;
+          }
+
+          .add-section-mobile {
+            padding: 1.2rem !important;
+          }
+
+          .submit-mobile {
+            width: 100%;
+          }
+
+          .chart-mobile {
+            padding: 1rem !important;
+          }
+        }
+      `}</style>
     </>
   );
 }
@@ -1092,7 +1210,7 @@ const styles = {
     borderRadius: 12,
     overflow: "hidden",
     width: "100%",
-    maxWidth: 260,
+    maxWidth: "100%",
   },
   navBtn: {
     background: "none",
