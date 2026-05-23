@@ -482,23 +482,26 @@ export default function Home() {
             <span style={{ color: "#ffffff" }}>spend</span>
             <span style={{ color: "#a78bfa" }}>wise</span> 💸
           </div>
-          <div
-            className="top-actions"
-            style={{ display: "flex", alignItems: "center", gap: 10 }}
-          >
-            {liveIndicator && <span style={styles.liveDot}>🟢 Live</span>}
+
+          <div className="top-actions">
             <div style={styles.monthNav} className="month-nav-mobile">
               <button style={styles.navBtn} onClick={() => changeMonth(-1)}>
                 ‹
               </button>
+
               <span style={styles.navLabel}>{getMonthLabel(currentDate)}</span>
+
               <button style={styles.navBtn} onClick={() => changeMonth(1)}>
                 ›
               </button>
             </div>
+
             <button
               className="logout-mobile"
-              style={styles.userChip}
+              style={{
+                ...styles.userChip,
+                height: 48,
+              }}
               onClick={async () => {
                 await supabase.auth.signOut();
                 window.location.href = "/login";
@@ -982,17 +985,20 @@ export default function Home() {
           .top-actions {
             width: 100%;
             display: flex;
+            flex-direction: row;
             gap: 10px;
-            flex-direction: column;
+            align-items: center;
           }
 
           .month-nav-mobile {
+            flex: 1;
             width: 100% !important;
             max-width: 100% !important;
           }
 
           .logout-mobile {
-            width: 100%;
+            width: auto !important;
+            min-width: 100px;
             justify-content: center;
             text-align: center;
           }
