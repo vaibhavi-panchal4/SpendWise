@@ -110,6 +110,13 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      if (Notification.permission !== "granted") {
+        Notification.requestPermission();
+      }
+    }
+  }, []);
+  useEffect(() => {
     if (currentUser) {
       fetchExpenses();
       fetchBudget();
@@ -138,6 +145,64 @@ export default function Home() {
       .subscribe();
     return () => supabase.removeChannel(channel);
   }, [fetchExpenses, fetchBudget]);
+
+  useEffect(() => {
+    const checkReminder = () => {
+      const hour = new Date().getHours();
+
+      // after 7 PM
+      if (hour >= 19 && expenses.length === 0) {
+        sendNotification(
+          "SpendWise 💸",
+          "Did you forget to log today's expenses?",
+        );
+      }
+    };
+
+    const timer = setTimeout(checkReminder, 5000);
+
+    return () => clearTimeout(timer);
+  }, [expenses]);
+
+  useEffect(() => {
+    const today = new Date().getDay();
+
+    // Saturday or Sunday
+    if (today === 6 || today === 0) {
+      setTimeout(() => {
+        sendNotification("Weekend Spending 👀", "Weekend spending check 💸");
+      }, 8000);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (budget > 0) {
+      const percent = (total / budget) * 100;
+
+      if (percent >= 80 && percent < 100) {
+        sendNotification(
+          "Budget Alert 🚨",
+          "You are close to your monthly budget.",
+        );
+      }
+
+      if (percent >= 100 && total > 0) {
+        sendNotification(
+          "Budget Exceeded 😭",
+          "You crossed your monthly budget!",
+        );
+      }
+    }
+  }, [total, budget]);
+
+  const sendNotification = (title, body) => {
+    if (Notification.permission === "granted") {
+      new Notification(title, {
+        body,
+        icon: "/icon.png",
+      });
+    }
+  };
 
   const saveBudget = async (val) => {
     if (!currentUser) return;

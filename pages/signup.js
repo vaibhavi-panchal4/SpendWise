@@ -32,6 +32,26 @@ export default function Signup() {
       name,
     });
 
+    const { data: groupData, error: groupError } = await supabase
+      .from("groups")
+      .insert({
+        name: `${name}'s Space`,
+        created_by: data.user.id,
+      })
+      .select()
+      .single();
+
+    if (groupError) {
+      console.log(groupError);
+    }
+
+    if (groupData) {
+      await supabase.from("group_members").insert({
+        group_id: groupData.id,
+        user_id: data.user.id,
+      });
+    }
+
     if (profileError) {
       console.log(profileError);
       alert(profileError.message);
