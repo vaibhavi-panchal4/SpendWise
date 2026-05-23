@@ -110,12 +110,17 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (typeof window !== "undefined" && "Notification" in window) {
+    if (typeof window === "undefined") return;
+
+    if (!("Notification" in window)) return;
+
+    setTimeout(() => {
       if (Notification.permission !== "granted") {
         Notification.requestPermission();
       }
-    }
+    }, 1000);
   }, []);
+
   useEffect(() => {
     if (currentUser) {
       fetchExpenses();
@@ -202,11 +207,19 @@ export default function Home() {
   }, [total, budget]);
 
   const sendNotification = (title, body) => {
-    if (Notification.permission === "granted") {
+    if (typeof window === "undefined") return;
+
+    if (!("Notification" in window)) return;
+
+    if (Notification.permission !== "granted") return;
+
+    try {
       new Notification(title, {
         body,
         icon: "/icon.png",
       });
+    } catch (err) {
+      console.log(err);
     }
   };
 
