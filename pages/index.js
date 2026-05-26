@@ -760,8 +760,6 @@ export default function Home() {
                 display: "flex",
                 flexDirection: "column",
                 gap: 10,
-                maxHeight: "520px",
-                overflowY: "auto",
                 paddingRight: 4,
               }}
             >
@@ -987,8 +985,6 @@ export default function Home() {
           }
 
           .transactions-scroll {
-            max-height: 500px !important;
-            overflow-y: auto;
             padding-right: 4px;
           }
 
