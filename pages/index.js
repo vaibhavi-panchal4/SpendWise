@@ -34,6 +34,7 @@ export default function Home() {
   const [expName, setExpName] = useState("");
   const [expAmt, setExpAmt] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
   const [toast, setToast] = useState(null);
   const [liveIndicator, setLiveIndicator] = useState(false);
   const toastTimer = useRef(null);
@@ -276,6 +277,7 @@ export default function Home() {
     showToast(`✅ Added ₹${amt.toLocaleString("en-IN")} · ${selectedCat}`);
     setExpName("");
     setExpAmt("");
+    setShowAddModal(false);
     nameRef.current?.focus();
   };
 
@@ -653,71 +655,89 @@ export default function Home() {
         </div>
 
         {/* Add form */}
-        <div style={styles.addSection} className="add-section-mobile">
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr",
-              gap: 12,
-              marginBottom: 14,
-            }}
-          >
-            <input
-              ref={nameRef}
-              style={{ ...styles.inp, flex: 1, minWidth: 180 }}
-              placeholder="What did you spend on?"
-              value={expName}
-              onChange={(e) => setExpName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && addExpense()}
-              maxLength={60}
-            />
-            <input
-              style={{
-                ...styles.inp,
-                width: "100%",
-                fontFamily: "'Syne',sans-serif",
-                fontWeight: 700,
-              }}
-              placeholder="₹ Amount"
-              type="number"
-              min="1"
-              value={expAmt}
-              onChange={(e) => setExpAmt(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && addExpense()}
-            />
-          </div>
-          <div
-            style={{
-              display: "flex",
-              gap: 10,
-              alignItems: "center",
-              flexWrap: "wrap",
-            }}
-          >
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", flex: 1 }}>
-              {Object.entries(CATS).map(([cat, c]) => (
-                <button
-                  key={cat}
-                  style={{
-                    ...styles.catBtn,
-                    ...(selectedCat === cat ? styles.catBtnActive : {}),
-                  }}
-                  onClick={() => setSelectedCat(cat)}
-                >
-                  {c.icon} {cat}
-                </button>
-              ))}
-            </div>
+        {showAddModal && (
+          <div style={styles.addSection} className="add-section-mobile">
             <button
-              className="submit-mobile"
-              style={{ ...styles.submitBtn, opacity: loading ? 0.5 : 1 }}
-              onClick={addExpense}
-              disabled={loading}
+              onClick={() => setShowAddModal(false)}
+              style={{
+                position: "absolute",
+                top: 14,
+                right: 14,
+                background: "none",
+                border: "none",
+                color: "white",
+                fontSize: "1.2rem",
+              }}
             >
-              {loading ? "..." : "+ Add"}
+              ✕
             </button>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr",
+                gap: 12,
+                marginBottom: 14,
+              }}
+            >
+              <input
+                ref={nameRef}
+                style={{ ...styles.inp, flex: 1, minWidth: 180 }}
+                placeholder="What did you spend on?"
+                value={expName}
+                onChange={(e) => setExpName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && addExpense()}
+                maxLength={60}
+              />
+              <input
+                style={{
+                  ...styles.inp,
+                  width: "100%",
+                  fontFamily: "'Syne',sans-serif",
+                  fontWeight: 700,
+                }}
+                placeholder="₹ Amount"
+                type="number"
+                min="1"
+                value={expAmt}
+                onChange={(e) => setExpAmt(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && addExpense()}
+              />
+            </div>
+            <div
+              style={{
+                display: "flex",
+                gap: 10,
+                alignItems: "center",
+                flexWrap: "wrap",
+              }}
+            >
+              <div
+                style={{ display: "flex", gap: 6, flexWrap: "wrap", flex: 1 }}
+              >
+                {Object.entries(CATS).map(([cat, c]) => (
+                  <button
+                    key={cat}
+                    style={{
+                      ...styles.catBtn,
+                      ...(selectedCat === cat ? styles.catBtnActive : {}),
+                    }}
+                    onClick={() => setSelectedCat(cat)}
+                  >
+                    {c.icon} {cat}
+                  </button>
+                ))}
+              </div>
+              <button
+                className="submit-mobile"
+                style={{ ...styles.submitBtn, opacity: loading ? 0.5 : 1 }}
+                onClick={addExpense}
+                disabled={loading}
+              >
+                {loading ? "..." : "+ Add"}
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Main area */}
         <div style={styles.mainArea} className="main-mobile">
@@ -972,30 +992,7 @@ export default function Home() {
           </div>
         </div>
       </div>
-
-      <button
-        onClick={() =>
-          window.scrollTo({
-            top: 0,
-            behavior: "smooth",
-          })
-        }
-        style={{
-          position: "fixed",
-          right: 18,
-          bottom: 20,
-          width: 58,
-          height: 58,
-          borderRadius: "50%",
-          border: "none",
-          background: "linear-gradient(135deg,#7c3aed,#c084fc)",
-          color: "#fff",
-          fontSize: "2rem",
-          fontWeight: 700,
-          zIndex: 999,
-          boxShadow: "0 10px 30px rgba(124,58,237,0.5)",
-        }}
-      >
+      <button onClick={() => setShowAddModal(true)} style={styles.fab}>
         +
       </button>
       {/* Toast */}
@@ -1423,7 +1420,12 @@ const styles = {
     background: "rgba(17, 25, 40, 0.72)",
     backdropFilter: "blur(20px)",
     border: "1px solid rgba(255,255,255,0.08)",
-    borderRadius: 24,
+    position: "fixed",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    zIndex: 999,
+    borderRadius: "28px 28px 0 0",
     padding: "1.2rem",
     marginBottom: "1.4rem",
     boxShadow: "0 10px 40px rgba(0,0,0,0.3)",
@@ -1580,6 +1582,21 @@ const styles = {
     transition: "all 0.25s",
     cursor: "pointer",
     color: "#f0eef8",
+  },
+  fab: {
+    position: "fixed",
+    bottom: "24px",
+    right: "20px",
+    width: "64px",
+    height: "64px",
+    borderRadius: "50%",
+    border: "none",
+    background: "linear-gradient(135deg,#7c3aed,#c084fc)",
+    color: "white",
+    fontSize: "2rem",
+    fontWeight: "700",
+    zIndex: 999,
+    boxShadow: "0 10px 30px rgba(124,58,237,0.45)",
   },
   toast: {
     position: "fixed",
