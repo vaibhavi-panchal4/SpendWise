@@ -987,7 +987,8 @@ export default function Home() {
           }
 
           .transactions-scroll {
-            max-height: 420px !important;
+            max-height: 500px !important;
+            overflow-y: auto;
             padding-right: 4px;
           }
 
@@ -1053,6 +1054,7 @@ export default function Home() {
           }
 
           .transaction-mobile {
+            min-height: 72px;
             padding: 12px !important;
             gap: 8px !important;
             align-items: center !important;
@@ -1448,7 +1450,6 @@ const styles = {
     gap: 12,
     transition: "border-color 0.2s",
     position: "relative",
-    overflow: "hidden",
   },
   expIcon2: {
     fontSize: "1.2rem",
