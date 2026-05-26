@@ -754,7 +754,14 @@ export default function Home() {
               </div>
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <div
+              className="transactions-scroll"
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 6,
+              }}
+            >
               {filtered.length === 0 ? (
                 <div style={styles.emptyState}>
                   <div
@@ -974,6 +981,22 @@ export default function Home() {
         @media (max-width: 768px) {
           input {
             width: 100% !important;
+          }
+
+          .transactions-scroll {
+            max-height: 420px;
+            overflow-y: auto;
+            padding-right: 4px;
+          }
+
+          /* smooth scrollbar */
+          .transactions-scroll::-webkit-scrollbar {
+            width: 4px;
+          }
+
+          .transactions-scroll::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 10px;
           }
 
           .topbar-mobile {
