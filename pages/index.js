@@ -1051,16 +1051,21 @@ export default function Home() {
           .transaction-mobile {
             padding: 12px !important;
             gap: 8px !important;
-            flex-wrap: wrap;
+            align-items: center !important;
           }
 
           .transaction-name-mobile {
             font-size: 0.8rem !important;
+            max-width: 120px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
           }
 
           .transaction-price-mobile {
-            font-size: 1rem !important;
+            font-size: 0.95rem !important;
             margin-left: auto !important;
+            white-space: nowrap;
           }
 
           .app-mobile {
