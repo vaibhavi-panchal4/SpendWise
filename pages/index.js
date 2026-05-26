@@ -877,7 +877,7 @@ export default function Home() {
           </div>
 
           {/* Chart sidebar */}
-          <div>
+          <div style={{ marginTop: 20 }}>
             <div style={styles.sectionLabel}>By Category</div>
             <div
               style={{
@@ -984,8 +984,6 @@ export default function Home() {
           }
 
           .transactions-scroll {
-            max-height: 420px;
-            overflow-y: auto;
             padding-right: 4px;
           }
 
@@ -1031,6 +1029,8 @@ export default function Home() {
           }
 
           .main-mobile {
+            display: flex !important;
+            flex-direction: column !important;
             grid-template-columns: 1fr !important;
           }
 
