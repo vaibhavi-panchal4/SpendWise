@@ -759,7 +759,10 @@ export default function Home() {
               style={{
                 display: "flex",
                 flexDirection: "column",
-                gap: 6,
+                gap: 10,
+                maxHeight: "520px",
+                overflowY: "auto",
+                paddingRight: 4,
               }}
             >
               {filtered.length === 0 ? (
@@ -984,6 +987,7 @@ export default function Home() {
           }
 
           .transactions-scroll {
+            max-height: 420px !important;
             padding-right: 4px;
           }
 
