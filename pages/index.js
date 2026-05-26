@@ -725,6 +725,12 @@ export default function Home() {
           <div>
             <div
               style={{
+                position: "sticky",
+                top: 78,
+                zIndex: 50,
+                background: "rgba(15,23,42,0.96)",
+                backdropFilter: "blur(12px)",
+                padding: "0.6rem 0",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
@@ -967,6 +973,31 @@ export default function Home() {
         </div>
       </div>
 
+      <button
+        onClick={() =>
+          window.scrollTo({
+            top: 0,
+            behavior: "smooth",
+          })
+        }
+        style={{
+          position: "fixed",
+          right: 18,
+          bottom: 20,
+          width: 58,
+          height: 58,
+          borderRadius: "50%",
+          border: "none",
+          background: "linear-gradient(135deg,#7c3aed,#c084fc)",
+          color: "#fff",
+          fontSize: "2rem",
+          fontWeight: 700,
+          zIndex: 999,
+          boxShadow: "0 10px 30px rgba(124,58,237,0.5)",
+        }}
+      >
+        +
+      </button>
       {/* Toast */}
       {toast && <div style={styles.toast}>{toast}</div>}
 
@@ -991,6 +1022,9 @@ export default function Home() {
 
           .transactions-scroll {
             padding-right: 4px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
           }
 
           /* smooth scrollbar */
@@ -1059,6 +1093,7 @@ export default function Home() {
             padding: 12px !important;
             gap: 8px !important;
             align-items: center !important;
+            border-radius: 18px !important;
           }
 
           .transaction-name-mobile {
@@ -1076,7 +1111,7 @@ export default function Home() {
           }
 
           .app-mobile {
-            padding: 0.7rem !important;
+            padding: 0.8rem !important;
           }
 
           .add-section-mobile {
@@ -1090,6 +1125,13 @@ export default function Home() {
           .chart-mobile {
             padding: 1rem !important;
             width: 100% !important;
+          }
+          .statValue {
+            font-size: 1.7rem !important;
+          }
+
+          .sectionLabel {
+            font-size: 0.72rem !important;
           }
         }
       `}</style>
@@ -1223,11 +1265,16 @@ const styles = {
     background: "linear-gradient(135deg,#0f172a,#111827,#1e1b4b)",
   },
   topbar: {
+    position: "sticky",
+    top: 0,
+    zIndex: 100,
+    background: "rgba(15,23,42,0.75)",
+    backdropFilter: "blur(18px)",
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: "2rem",
-    paddingBottom: "1.5rem",
+    marginBottom: "1.2rem",
+    padding: "0.8rem 0",
     borderBottom: "1px solid rgba(255,255,255,0.07)",
     flexWrap: "wrap",
     gap: 16,
@@ -1376,9 +1423,9 @@ const styles = {
     background: "rgba(17, 25, 40, 0.72)",
     backdropFilter: "blur(20px)",
     border: "1px solid rgba(255,255,255,0.08)",
-    borderRadius: 28,
-    padding: "1.8rem",
-    marginBottom: "2rem",
+    borderRadius: 24,
+    padding: "1.2rem",
+    marginBottom: "1.4rem",
     boxShadow: "0 10px 40px rgba(0,0,0,0.3)",
   },
   inp: {
@@ -1445,19 +1492,20 @@ const styles = {
   expItem: {
     background: "#12121a",
     border: "1px solid rgba(255,255,255,0.07)",
-    borderRadius: 12,
-    padding: "11px 14px",
+    borderRadius: 16,
+    padding: "10px 12px",
     display: "flex",
     alignItems: "center",
-    gap: 12,
+    gap: 10,
     transition: "border-color 0.2s",
     position: "relative",
+    overflow: "hidden",
   },
   expIcon2: {
-    fontSize: "1.2rem",
-    width: 36,
-    height: 36,
-    borderRadius: 9,
+    fontSize: "1rem",
+    width: 32,
+    height: 32,
+    borderRadius: 8,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
