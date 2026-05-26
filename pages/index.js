@@ -878,13 +878,18 @@ export default function Home() {
           </div>
 
           {/* Chart sidebar */}
-          <div style={{ marginTop: 20 }}>
+          <div
+            style={{ marginTop: 20, width: "100%" }}
+            className="chart-mobile"
+          >
             <div style={styles.sectionLabel}>By Category</div>
             <div
+              className="chart-mobile"
               style={{
                 ...styles.budgetSection,
                 marginBottom: 12,
                 marginTop: 12,
+                width: "100%",
               }}
             >
               <DonutChart expenses={expenses} />
@@ -1084,6 +1089,7 @@ export default function Home() {
 
           .chart-mobile {
             padding: 1rem !important;
+            width: 100% !important;
           }
         }
       `}</style>
