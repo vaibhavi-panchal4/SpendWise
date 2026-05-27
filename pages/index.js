@@ -1122,7 +1122,7 @@ export default function Home() {
 
           .add-section-mobile {
             padding: 1.5rem !important;
-            padding-top: 2rem !important;
+            padding-top: 3.5rem !important;
           }
 
           .add-section-mobile button[title="close"] {
