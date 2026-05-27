@@ -1121,7 +1121,12 @@ export default function Home() {
           }
 
           .add-section-mobile {
-            padding: 1.2rem !important;
+            padding: 5.5rem !important;
+          }
+
+          .add-section-mobile button[title="close"] {
+            top: 14px !important;
+            right: 14px !important;
           }
 
           .submit-mobile {
