@@ -1121,7 +1121,7 @@ export default function Home() {
           }
 
           .add-section-mobile {
-            padding: 5.5rem !important;
+            padding: 1.5rem !important;
           }
 
           .add-section-mobile button[title="close"] {
