@@ -661,13 +661,21 @@ export default function Home() {
               onClick={() => setShowAddModal(false)}
               style={{
                 position: "absolute",
-                top: 12,
-                right: 12,
+                top: 18,
+                right: 18,
                 zIndex: 10,
                 background: "none",
                 border: "none",
                 color: "white",
                 fontSize: "1.2rem",
+                width: 42,
+                height: 42,
+                borderRadius: "50%",
+                background: "rgba(255,255,255,0.06)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                backdropFilter: "blur(10px)",
               }}
             >
               ✕
@@ -1297,8 +1305,8 @@ const styles = {
     border: "1px solid rgba(255,255,255,0.07)",
     borderRadius: 12,
     overflow: "hidden",
-    width: "100%",
-    maxWidth: "100%",
+    flex: 1,
+    minWidth: 0,
   },
   navBtn: {
     background: "none",
