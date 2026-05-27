@@ -661,8 +661,9 @@ export default function Home() {
               onClick={() => setShowAddModal(false)}
               style={{
                 position: "absolute",
-                top: 14,
-                right: 14,
+                top: 12,
+                right: 12,
+                zIndex: 10,
                 background: "none",
                 border: "none",
                 color: "white",
@@ -746,7 +747,7 @@ export default function Home() {
             <div
               style={{
                 position: "sticky",
-                top: 78,
+                top: 95,
                 zIndex: 50,
                 background: "rgba(15,23,42,0.96)",
                 backdropFilter: "blur(12px)",
@@ -1050,13 +1051,11 @@ export default function Home() {
 
           .month-nav-mobile {
             flex: 1;
-            width: 100% !important;
-            max-width: 100% !important;
+            min-width: 0;
           }
 
           .logout-mobile {
-            width: auto !important;
-            min-width: 100px;
+            width: 110px !important;
             justify-content: center;
             text-align: center;
           }
