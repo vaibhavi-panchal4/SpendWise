@@ -747,7 +747,8 @@ export default function Home() {
             <div
               style={{
                 position: "sticky",
-                top: 95,
+                top: 110,
+                paddingTop: 6,
                 zIndex: 50,
                 background: "rgba(15,23,42,0.96)",
                 backdropFilter: "blur(12px)",
@@ -993,9 +994,11 @@ export default function Home() {
           </div>
         </div>
       </div>
-      <button onClick={() => setShowAddModal(true)} style={styles.fab}>
-        +
-      </button>
+      {!showAddModal && (
+        <button onClick={() => setShowAddModal(true)} style={styles.fab}>
+          +
+        </button>
+      )}
       {/* Toast */}
       {toast && <div style={styles.toast}>{toast}</div>}
 
@@ -1425,7 +1428,7 @@ const styles = {
     right: 0,
     zIndex: 999,
     borderRadius: "28px 28px 0 0",
-    padding: "1.2rem",
+    padding: "4rem 1.2rem 1.2rem",
     marginBottom: "1.4rem",
     boxShadow: "0 10px 40px rgba(0,0,0,0.3)",
   },
