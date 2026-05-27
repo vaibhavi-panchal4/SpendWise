@@ -661,8 +661,8 @@ export default function Home() {
               onClick={() => setShowAddModal(false)}
               style={{
                 position: "absolute",
-                top: 10,
-                right: 10,
+                top: 14,
+                right: 14,
                 zIndex: 10,
                 background: "none",
                 border: "none",
@@ -1443,6 +1443,7 @@ const styles = {
     padding: "4rem 1.2rem 1.2rem",
     marginBottom: "1.4rem",
     boxShadow: "0 10px 40px rgba(0,0,0,0.3)",
+    overflow: "hidden",
   },
   inp: {
     background: "rgba(255,255,255,0.05)",
