@@ -1126,7 +1126,7 @@ export default function Home() {
           }
 
           .add-section-mobile button[title="close"] {
-            top: 14px !important;
+            top: 10px !important;
             right: 14px !important;
           }
 
