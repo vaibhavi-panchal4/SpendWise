@@ -582,10 +582,15 @@ export default function Home() {
             },
             {
               icon: budget > 0 && total > budget ? "🚨" : "✅",
-              label: budget > 0 ? "Remaining" : "Daily Avg",
+              label:
+                budget > 0
+                  ? remaining < 0
+                    ? "Overspent"
+                    : "Remaining"
+                  : "Daily Avg",
               value:
                 budget > 0
-                  ? `₹${Math.abs(Math.round(remaining)).toLocaleString("en-IN")}`
+                  ? `₹${Math.round(Math.abs(remaining)).toLocaleString("en-IN")}`
                   : `₹${expenses.length ? Math.round(total / new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate()).toLocaleString("en-IN") : 0}`,
               sub:
                 budget > 0
@@ -739,7 +744,14 @@ export default function Home() {
         {showAddModal && (
           <div style={styles.addSection} className="add-section-mobile">
             <button
-              onClick={() => setShowAddModal(false)}
+              onClick={() => {
+                setShowAddModal(false);
+                setEditingExpense(null);
+                setExpName("");
+                setExpAmt("");
+                setSelectedCat("Food");
+                setPaymentMode("UPI");
+              }}
               style={{
                 position: "absolute",
                 top: 20,
@@ -800,8 +812,15 @@ export default function Home() {
                 flexWrap: "wrap",
               }}
             >
+              {/* Categories */}
+
               <div
-                style={{ display: "flex", gap: 6, flexWrap: "wrap", flex: 1 }}
+                style={{
+                  display: "flex",
+                  gap: 6,
+                  flexWrap: "wrap",
+                  marginBottom: 12,
+                }}
               >
                 {Object.entries(CATS).map(([cat, c]) => (
                   <button
@@ -816,10 +835,40 @@ export default function Home() {
                   </button>
                 ))}
               </div>
+
+              {/* Payment Modes */}
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: 6,
+                  flexWrap: "wrap",
+                  marginBottom: 16,
+                }}
+              >
+                {PAYMENTS.map((p) => (
+                  <button
+                    key={p.name}
+                    style={{
+                      ...styles.catBtn,
+                      ...(paymentMode === p.name ? styles.catBtnActive : {}),
+                    }}
+                    onClick={() => setPaymentMode(p.name)}
+                  >
+                    {p.icon} {p.name}
+                  </button>
+                ))}
+              </div>
               <button
                 className="submit-mobile"
                 style={{ ...styles.submitBtn, opacity: loading ? 0.5 : 1 }}
-                onClick={editingExpense ? updateExpense : addExpense}
+                onClick={async () => {
+                  if (editingExpense) {
+                    await updateExpense();
+                  } else {
+                    await addExpense();
+                  }
+                }}
                 disabled={loading}
               >
                 {loading ? "..." : editingExpense ? "✓ Update" : "+ Add"}
@@ -996,29 +1045,6 @@ export default function Home() {
                         }}
                       >
                         ₹{Number(e.amount).toLocaleString("en-IN")}
-                        <div
-                          style={{
-                            display: "flex",
-                            gap: 8,
-                            flexWrap: "wrap",
-                            marginBottom: 12,
-                          }}
-                        >
-                          {PAYMENTS.map((p) => (
-                            <button
-                              key={p.name}
-                              onClick={() => setPaymentMode(p.name)}
-                              style={{
-                                ...styles.catBtn,
-                                ...(paymentMode === p.name
-                                  ? styles.catBtnActive
-                                  : {}),
-                              }}
-                            >
-                              {p.icon} {p.name}
-                            </button>
-                          ))}
-                        </div>
                       </div>
                       <div
                         style={{
@@ -1034,6 +1060,7 @@ export default function Home() {
                             setExpName(e.name);
                             setExpAmt(e.amount);
                             setSelectedCat(e.category);
+                            setPaymentMode(e.payment_mode);
                             setShowAddModal(true);
                           }}
                         >
@@ -1168,7 +1195,17 @@ export default function Home() {
         </div>
       </div>
       {!showAddModal && (
-        <button onClick={() => setShowAddModal(true)} style={styles.fab}>
+        <button
+          onClick={() => {
+            setEditingExpense(null);
+            setExpName("");
+            setExpAmt("");
+            setSelectedCat("Food");
+            setPaymentMode("UPI");
+            setShowAddModal(true);
+          }}
+          style={styles.fab}
+        >
           +
         </button>
       )}
@@ -1194,7 +1231,7 @@ export default function Home() {
             width: 100% !important;
           }
           .payments-mobile {
-            grid-template-columns: 1fr !important;
+            grid-template-columns: repeat(3, 1fr) !important;
           }
 
           .transactions-scroll {
