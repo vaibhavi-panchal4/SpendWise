@@ -35,6 +35,14 @@ function getMonthKey(d) {
 function getMonthLabel(d) {
   return d.toLocaleDateString("en-IN", { month: "long", year: "numeric" });
 }
+function getLocalDate() {
+  const d = new Date();
+
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
+    2,
+    "0",
+  )}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 export default function Home() {
   //const [user, setUser] = useState(null); // null = not chosen yet
@@ -55,10 +63,20 @@ export default function Home() {
   const [editingExpense, setEditingExpense] = useState(null);
   const [toast, setToast] = useState(null);
   const [liveIndicator, setLiveIndicator] = useState(false);
+  const [showReminderPopup, setShowReminderPopup] = useState(false);
+  const [reminders, setReminders] = useState([]);
+  const [dueReminders, setDueReminders] = useState([]);
+  const [showReminderManager, setShowReminderManager] = useState(false);
   const toastTimer = useRef(null);
   const nameRef = useRef(null);
 
   const monthKey = getMonthKey(currentDate);
+
+  const [reminderTitle, setReminderTitle] = useState("");
+
+  const [reminderAmount, setReminderAmount] = useState("");
+
+  const [reminderDay, setReminderDay] = useState("");
 
   const showToast = useCallback((msg) => {
     setToast(msg);
@@ -69,16 +87,19 @@ export default function Home() {
   // Fetch expenses for current month
   const fetchExpenses = useCallback(async () => {
     if (!currentUser) return;
-    const start = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
-      .toISOString()
-      .split("T")[0];
-    const end = new Date(
-      currentDate.getFullYear(),
+    const start = `${currentDate.getFullYear()}-${String(
       currentDate.getMonth() + 1,
-      0,
-    )
-      .toISOString()
-      .split("T")[0];
+    ).padStart(2, "0")}-01`;
+
+    const end = `${currentDate.getFullYear()}-${String(
+      currentDate.getMonth() + 1,
+    ).padStart(2, "0")}-${String(
+      new Date(
+        currentDate.getFullYear(),
+        currentDate.getMonth() + 1,
+        0,
+      ).getDate(),
+    ).padStart(2, "0")}`;
     const { data, error } = await supabase
       .from("expenses")
       .select("*")
@@ -88,6 +109,27 @@ export default function Home() {
       .order("created_at", { ascending: false });
     if (!error) setExpenses(data || []);
   }, [currentDate, currentUser]);
+
+  const addReminder = async () => {
+    const { error } = await supabase.from("reminders").insert({
+      user_id: currentUser.id,
+      title: reminderTitle,
+      amount: Number(reminderAmount),
+      due_day: Number(reminderDay),
+    });
+
+    if (!error) {
+      fetchReminders();
+
+      setReminderTitle("");
+      setReminderAmount("");
+      setReminderDay("");
+
+      showToast("🔔 Reminder Added");
+      fetchReminders();
+      setShowReminderManager(false);
+    }
+  };
 
   // Fetch budget for current month
   const fetchBudget = useCallback(async () => {
@@ -114,6 +156,21 @@ export default function Home() {
       setBudgetInput("");
     }
   }, [monthKey, currentUser]);
+
+  const fetchReminders = useCallback(async () => {
+    if (!currentUser) return;
+
+    const { data, error } = await supabase
+      .from("reminders")
+      .select("*")
+      .eq("user_id", currentUser.id)
+      .eq("active", true);
+
+    if (!error) {
+      setReminders(data || []);
+    }
+  }, [currentUser]);
+
   useEffect(() => {
     const getUser = async () => {
       const { data } = await supabase.auth.getUser();
@@ -144,8 +201,9 @@ export default function Home() {
     if (currentUser) {
       fetchExpenses();
       fetchBudget();
+      fetchReminders();
     }
-  }, [currentUser, fetchExpenses, fetchBudget]);
+  }, [currentUser, fetchExpenses, fetchBudget, fetchReminders]);
   // Realtime subscription
   useEffect(() => {
     const channel = supabase
@@ -198,6 +256,21 @@ export default function Home() {
       }, 8000);
     }
   }, []);
+
+  useEffect(() => {
+    if (!reminders.length) return;
+
+    const today = new Date().getDate();
+
+    const due = reminders.filter(
+      (r) => r.due_day === today || r.due_day === today + 1,
+    );
+
+    if (due.length > 0) {
+      setDueReminders(due);
+      setShowReminderPopup(true);
+    }
+  }, [reminders]);
 
   // Computed
   const total = expenses.reduce((s, e) => s + Number(e.amount), 0);
@@ -297,7 +370,7 @@ export default function Home() {
       category: selectedCat,
       user_id: currentUser.id,
       payment_mode: paymentMode,
-      date: new Date().toISOString().split("T")[0],
+      date: getLocalDate(),
     });
     setLoading(false);
     if (error) {
@@ -554,7 +627,6 @@ export default function Home() {
                 ›
               </button>
             </div>
-
             <button
               className="logout-mobile"
               style={{
@@ -1209,9 +1281,225 @@ export default function Home() {
           +
         </button>
       )}
-      {/* Toast */}
-      {toast && <div style={styles.toast}>{toast}</div>}
+      <button
+        style={{
+          ...styles.fab,
+          right: "105px",
+          bottom: "24px",
+          width: "56px",
+          height: "56px",
+          fontSize: "1rem",
+          position: "fixed",
+        }}
+        onClick={() => setShowReminderManager(true)}
+      >
+        🔔
+        {reminders.length > 0 && (
+          <span
+            style={{
+              position: "absolute",
+              top: "-4px",
+              right: "-4px",
+              background: "#ef4444",
+              color: "white",
+              width: "22px",
+              height: "22px",
+              borderRadius: "50%",
+              fontSize: "0.75rem",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontWeight: "700",
+            }}
+          >
+            {reminders.length}
+          </span>
+        )}
+      </button>
 
+      {showReminderPopup && (
+        <div style={styles.reminderOverlay}>
+          <div style={styles.reminderCard}>
+            <div
+              style={{
+                width: 50,
+                height: 5,
+                background: "rgba(255,255,255,0.2)",
+                borderRadius: 999,
+                margin: "0 auto 18px",
+              }}
+            />
+            <h3 style={{ marginTop: 0 }}>🔔 Upcoming Bills</h3>
+
+            {dueReminders.map((r) => (
+              <div
+                key={r.title}
+                style={{
+                  marginBottom: 12,
+                  padding: 10,
+                  borderRadius: 10,
+                  background: "rgba(255,255,255,0.05)",
+                }}
+              >
+                <div>{r.title}</div>
+
+                <div
+                  style={{
+                    color: "#a78bfa",
+                    fontSize: "0.9rem",
+                  }}
+                >
+                  ₹{r.amount}
+                </div>
+
+                <div
+                  style={{
+                    fontSize: "0.8rem",
+                    opacity: 0.7,
+                  }}
+                >
+                  {r.due_day === new Date().getDate()
+                    ? "Due Today"
+                    : "Due Tomorrow"}
+                </div>
+              </div>
+            ))}
+
+            <button
+              style={{
+                width: "100%",
+                height: 48,
+                borderRadius: 14,
+                marginTop: 10,
+              }}
+              onClick={() => setShowReminderPopup(false)}
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showReminderManager && (
+        <div style={styles.reminderOverlay}>
+          <div style={styles.reminderSheet}>
+            <h3 style={{ marginTop: 0 }}>🔔 Manage Bills</h3>
+
+            <input
+              style={{
+                ...styles.inp,
+                width: "100%",
+                marginBottom: 10,
+              }}
+              placeholder="Bill Name"
+              value={reminderTitle}
+              onChange={(e) => setReminderTitle(e.target.value)}
+            />
+
+            <input
+              style={{
+                ...styles.inp,
+                width: "100%",
+                marginBottom: 10,
+              }}
+              placeholder="Amount"
+              type="number"
+              value={reminderAmount}
+              onChange={(e) => setReminderAmount(e.target.value)}
+            />
+
+            <input
+              style={{
+                ...styles.inp,
+                width: "100%",
+                marginBottom: 15,
+              }}
+              placeholder="Due Day (1-31)"
+              type="number"
+              min="1"
+              max="31"
+              value={reminderDay}
+              onChange={(e) => setReminderDay(e.target.value)}
+            />
+
+            <button
+              style={{
+                ...styles.submitBtn,
+                marginBottom: 10,
+              }}
+              onClick={addReminder}
+            >
+              ➕ Add Reminder
+            </button>
+
+            <div
+              style={{
+                maxHeight: 200,
+                overflowY: "auto",
+              }}
+            >
+              {reminders.map((r) => (
+                <div
+                  key={r.id}
+                  style={{
+                    padding: 10,
+                    marginBottom: 8,
+                    borderRadius: 10,
+                    background: "rgba(255,255,255,0.05)",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <div>
+                    <div>{r.title}</div>
+
+                    <div>₹{r.amount}</div>
+
+                    <div
+                      style={{
+                        fontSize: "0.8rem",
+                        opacity: 0.7,
+                      }}
+                    >
+                      Every month on {r.due_day}
+                    </div>
+                  </div>
+
+                  <button
+                    style={{
+                      background: "transparent",
+                      border: "none",
+                      fontSize: "1.1rem",
+                      cursor: "pointer",
+                    }}
+                    onClick={async () => {
+                      await supabase.from("reminders").delete().eq("id", r.id);
+
+                      fetchReminders();
+                      showToast("🗑️ Reminder Deleted");
+                    }}
+                  >
+                    🗑️
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <button
+              style={{
+                ...styles.userChip,
+                width: "100%",
+                marginTop: 15,
+              }}
+              onClick={() => setShowReminderManager(false)}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+      {/* Toast */}
       {toast && <div style={styles.toast}>{toast}</div>}
 
       <style jsx global>{`
@@ -1260,9 +1548,7 @@ export default function Home() {
           .top-actions {
             width: 100%;
             display: flex;
-            flex-direction: row;
             gap: 10px;
-            align-items: center;
           }
 
           .month-nav-mobile {
@@ -1859,5 +2145,38 @@ const styles = {
     zIndex: 999,
     whiteSpace: "nowrap",
     boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+  },
+  reminderOverlay: {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(0,0,0,0.35)",
+    zIndex: 2000,
+    display: "flex",
+    justifyContent: "flex-end",
+    alignItems: "flex-end",
+  },
+  reminderCard: {
+    width: "100%",
+    background: "#12121a",
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    padding: 20,
+    color: "white",
+    border: "1px solid rgba(255,255,255,0.08)",
+    boxShadow: "0 -10px 40px rgba(0,0,0,0.4)",
+  },
+  reminderSheet: {
+    position: "fixed",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    background: "#12121a",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    color: "white",
+    maxHeight: "80vh",
+    overflowY: "auto",
+    animation: "slideUp 0.25s ease",
   },
 };
