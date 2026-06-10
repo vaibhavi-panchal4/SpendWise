@@ -12,6 +12,21 @@ const CATS = {
   Other: { icon: "📦", color: "#94a3b8", bg: "rgba(148,163,184,0.12)" },
 };
 
+const PAYMENTS = [
+  {
+    name: "UPI",
+    icon: "📱",
+  },
+  {
+    name: "Cash",
+    icon: "💵",
+  },
+  {
+    name: "Card",
+    icon: "💳",
+  },
+];
+
 const USERS = ["💜 You", "💙 Him"];
 
 function getMonthKey(d) {
@@ -24,6 +39,7 @@ function getMonthLabel(d) {
 export default function Home() {
   //const [user, setUser] = useState(null); // null = not chosen yet
   const [currentUser, setCurrentUser] = useState(null);
+  const [search, setSearch] = useState("");
   const [loadingUser, setLoadingUser] = useState(true);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [expenses, setExpenses] = useState([]);
@@ -31,10 +47,12 @@ export default function Home() {
   const [budgetInput, setBudgetInput] = useState("");
   const [filterCat, setFilterCat] = useState("All");
   const [selectedCat, setSelectedCat] = useState("Food");
+  const [paymentMode, setPaymentMode] = useState("UPI");
   const [expName, setExpName] = useState("");
   const [expAmt, setExpAmt] = useState("");
   const [loading, setLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingExpense, setEditingExpense] = useState(null);
   const [toast, setToast] = useState(null);
   const [liveIndicator, setLiveIndicator] = useState(false);
   const toastTimer = useRef(null);
@@ -183,6 +201,17 @@ export default function Home() {
 
   // Computed
   const total = expenses.reduce((s, e) => s + Number(e.amount), 0);
+  const upiTotal = expenses
+    .filter((e) => e.payment_mode === "UPI")
+    .reduce((s, e) => s + Number(e.amount), 0);
+
+  const cashTotal = expenses
+    .filter((e) => e.payment_mode === "Cash")
+    .reduce((s, e) => s + Number(e.amount), 0);
+
+  const cardTotal = expenses
+    .filter((e) => e.payment_mode === "Card")
+    .reduce((s, e) => s + Number(e.amount), 0);
   const remaining = budget - total;
   const budgetPct = budget > 0 ? Math.min((total / budget) * 100, 100) : 0;
   const budgetPctNum = budget > 0 ? Math.round((total / budget) * 100) : null;
@@ -267,6 +296,7 @@ export default function Home() {
       amount: amt,
       category: selectedCat,
       user_id: currentUser.id,
+      payment_mode: paymentMode,
       date: new Date().toISOString().split("T")[0],
     });
     setLoading(false);
@@ -279,6 +309,32 @@ export default function Home() {
     setExpAmt("");
     setShowAddModal(false);
     nameRef.current?.focus();
+  };
+
+  const updateExpense = async () => {
+    if (!editingExpense) return;
+
+    const { error } = await supabase
+      .from("expenses")
+      .update({
+        name: expName,
+        amount: Number(expAmt),
+        payment_mode: paymentMode,
+        category: selectedCat,
+      })
+      .eq("id", editingExpense.id);
+
+    if (error) {
+      showToast("❌ Update failed");
+      return;
+    }
+
+    showToast("✅ Expense updated");
+
+    setEditingExpense(null);
+    setShowAddModal(false);
+    setExpName("");
+    setExpAmt("");
   };
 
   const deleteExpense = async (id) => {
@@ -308,10 +364,11 @@ export default function Home() {
     .filter((e) => e.added_by === "him")
     .reduce((s, e) => s + Number(e.amount), 0); */
 
-  const filtered =
+  const filtered = (
     filterCat === "All"
       ? expenses
-      : expenses.filter((e) => e.category === filterCat);
+      : expenses.filter((e) => e.category === filterCat)
+  ).filter((e) => e.name.toLowerCase().includes(search.toLowerCase()));
 
   // User picker screen
   /*if (user === null) {
@@ -652,6 +709,30 @@ export default function Home() {
               }}
             />
           </div>
+          <div
+            className="payments-mobile"
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3,1fr)",
+              gap: 10,
+              marginTop: 16,
+            }}
+          >
+            <div style={styles.payCard}>
+              📱 UPI
+              <br />₹{upiTotal.toLocaleString("en-IN")}
+            </div>
+
+            <div style={styles.payCard}>
+              💵 Cash
+              <br />₹{cashTotal.toLocaleString("en-IN")}
+            </div>
+
+            <div style={styles.payCard}>
+              💳 Card
+              <br />₹{cardTotal.toLocaleString("en-IN")}
+            </div>
+          </div>
         </div>
 
         {/* Add form */}
@@ -738,10 +819,10 @@ export default function Home() {
               <button
                 className="submit-mobile"
                 style={{ ...styles.submitBtn, opacity: loading ? 0.5 : 1 }}
-                onClick={addExpense}
+                onClick={editingExpense ? updateExpense : addExpense}
                 disabled={loading}
               >
-                {loading ? "..." : "+ Add"}
+                {loading ? "..." : editingExpense ? "✓ Update" : "+ Add"}
               </button>
             </div>
           </div>
@@ -768,6 +849,16 @@ export default function Home() {
                 gap: 8,
               }}
             >
+              <input
+                placeholder="🔍 Search expense"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                style={{
+                  ...styles.inp,
+                  width: "100%",
+                  marginBottom: 10,
+                }}
+              />
               <span style={styles.sectionLabel}>
                 {filterCat === "All"
                   ? "All Transactions"
@@ -869,6 +960,14 @@ export default function Home() {
                           }}
                         >
                           <span style={{ color: c.color }}>{e.category}</span>
+                          <span>
+                            •{" "}
+                            {e.payment_mode === "UPI"
+                              ? "📱 UPI"
+                              : e.payment_mode === "Cash"
+                                ? "💵 Cash"
+                                : "💳 Card"}
+                          </span>
                           {/*<span
                             style={{ color: isYou ? "#a78bfa" : "#60a5fa" }}
                           >
@@ -897,14 +996,57 @@ export default function Home() {
                         }}
                       >
                         ₹{Number(e.amount).toLocaleString("en-IN")}
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: 8,
+                            flexWrap: "wrap",
+                            marginBottom: 12,
+                          }}
+                        >
+                          {PAYMENTS.map((p) => (
+                            <button
+                              key={p.name}
+                              onClick={() => setPaymentMode(p.name)}
+                              style={{
+                                ...styles.catBtn,
+                                ...(paymentMode === p.name
+                                  ? styles.catBtnActive
+                                  : {}),
+                              }}
+                            >
+                              {p.icon} {p.name}
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                      <button
-                        style={styles.delBtn}
-                        onClick={() => deleteExpense(e.id)}
-                        title="Delete"
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: 6,
+                          marginLeft: 6,
+                        }}
                       >
-                        ✕
-                      </button>
+                        <button
+                          style={styles.editBtn}
+                          onClick={() => {
+                            setEditingExpense(e);
+                            setExpName(e.name);
+                            setExpAmt(e.amount);
+                            setSelectedCat(e.category);
+                            setShowAddModal(true);
+                          }}
+                        >
+                          ✏️
+                        </button>
+
+                        <button
+                          style={styles.delBtn}
+                          onClick={() => deleteExpense(e.id)}
+                        >
+                          ✕
+                        </button>
+                      </div>
                     </div>
                   );
                 })
@@ -928,6 +1070,30 @@ export default function Home() {
               }}
             >
               <DonutChart expenses={expenses} />
+            </div>
+            <div
+              style={{
+                ...styles.budgetSection,
+                marginBottom: 12,
+              }}
+            >
+              <div style={styles.sectionLabel}>Insights</div>
+
+              <p style={{ color: "#f0eef8" }}>
+                🏆 Top Category: {topCat?.[0] || "None"}
+              </p>
+
+              <p style={{ color: "#f0eef8" }}>
+                💰 Largest Expense: ₹
+                {Math.max(
+                  ...expenses.map((e) => Number(e.amount)),
+                  0,
+                ).toLocaleString("en-IN")}
+              </p>
+
+              <p style={{ color: "#f0eef8" }}>
+                📊 Transactions: {expenses.length}
+              </p>
             </div>
             <div
               className="budget-controls-mobile"
@@ -1026,6 +1192,9 @@ export default function Home() {
         @media (max-width: 768px) {
           input {
             width: 100% !important;
+          }
+          .payments-mobile {
+            grid-template-columns: 1fr !important;
           }
 
           .transactions-scroll {
@@ -1541,6 +1710,17 @@ const styles = {
     overflow: "hidden",
     textOverflow: "ellipsis",
   },
+  editBtn: {
+    background: "rgba(167,139,250,0.12)",
+    border: "1px solid rgba(167,139,250,0.35)",
+    color: "#a78bfa",
+    width: 26,
+    height: 26,
+    borderRadius: 6,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   delBtn: {
     background: "none",
     border: "none",
@@ -1554,6 +1734,16 @@ const styles = {
     justifyContent: "center",
     flexShrink: 0,
     transition: "all 0.2s",
+  },
+  payCard: {
+    background: "rgba(255,255,255,0.04)",
+    border: "1px solid rgba(255,255,255,0.08)",
+    borderRadius: 16,
+    padding: "14px",
+    textAlign: "center",
+    color: "#f0eef8",
+    fontWeight: 700,
+    fontSize: "0.9rem",
   },
   emptyState: {
     textAlign: "center",
