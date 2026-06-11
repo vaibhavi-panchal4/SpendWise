@@ -77,6 +77,11 @@ export default function Home() {
   const [reminderAmount, setReminderAmount] = useState("");
 
   const [reminderDay, setReminderDay] = useState("");
+  const [repeatType, setRepeatType] = useState("monthly");
+
+  const [selectedMonths, setSelectedMonths] = useState([]);
+
+  const [oneTimeMonth, setOneTimeMonth] = useState("");
 
   const showToast = useCallback((msg) => {
     setToast(msg);
@@ -116,6 +121,14 @@ export default function Home() {
       title: reminderTitle,
       amount: Number(reminderAmount),
       due_day: Number(reminderDay),
+
+      repeat_type: repeatType,
+
+      months: repeatType === "custom" ? selectedMonths : null,
+
+      one_time_month: repeatType === "one_time" ? oneTimeMonth : null,
+
+      active: true,
     });
 
     if (!error) {
@@ -125,8 +138,12 @@ export default function Home() {
       setReminderAmount("");
       setReminderDay("");
 
+      setRepeatType("monthly");
+      setSelectedMonths([]);
+      setOneTimeMonth("");
+
       showToast("🔔 Reminder Added");
-      fetchReminders();
+
       setShowReminderManager(false);
     }
   };
@@ -260,11 +277,38 @@ export default function Home() {
   useEffect(() => {
     if (!reminders.length) return;
 
-    const today = new Date().getDate();
+    const now = new Date();
 
-    const due = reminders.filter(
-      (r) => r.due_day === today || r.due_day === today + 1,
-    );
+    const today = now.getDate();
+
+    const currentMonth = now.getMonth() + 1;
+
+    const currentMonthKey = `${now.getFullYear()}-${String(currentMonth).padStart(2, "0")}`;
+
+    const due = reminders.filter((r) => {
+      const currentMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
+
+      if (r.paid_month === currentMonth) {
+        return false;
+      }
+      const dueSoon = r.due_day === today || r.due_day === today + 1;
+
+      if (!dueSoon) return false;
+
+      if (r.repeat_type === "monthly") {
+        return true;
+      }
+
+      if (r.repeat_type === "custom") {
+        return r.months?.includes(currentMonth);
+      }
+
+      if (r.repeat_type === "one_time") {
+        return r.one_time_month === currentMonthKey;
+      }
+
+      return false;
+    });
 
     if (due.length > 0) {
       setDueReminders(due);
@@ -408,6 +452,32 @@ export default function Home() {
     setShowAddModal(false);
     setExpName("");
     setExpAmt("");
+  };
+
+  const markReminderPaid = async (id) => {
+    const now = new Date();
+
+    const paidMonth = `${now.getFullYear()}-${String(
+      now.getMonth() + 1,
+    ).padStart(2, "0")}`;
+
+    const reminder = reminders.find((r) => r.id === id);
+
+    await supabase
+      .from("reminders")
+      .update({
+        paid_date: new Date().toISOString(),
+        paid_month: paidMonth,
+
+        active: reminder?.repeat_type === "one_time" ? false : true,
+      })
+      .eq("id", id);
+
+    fetchReminders();
+
+    setDueReminders((prev) => prev.filter((r) => r.id !== id));
+
+    showToast("✅ Bill marked paid");
   };
 
   const deleteExpense = async (id) => {
@@ -1281,52 +1351,56 @@ export default function Home() {
           +
         </button>
       )}
-      <button
-        style={{
-          ...styles.fab,
-          right: "105px",
-          bottom: "24px",
-          width: "56px",
-          height: "56px",
-          fontSize: "1rem",
-          position: "fixed",
-        }}
-        onClick={() => setShowReminderManager(true)}
-      >
-        🔔
-        {reminders.length > 0 && (
-          <span
-            style={{
-              position: "absolute",
-              top: "-4px",
-              right: "-4px",
-              background: "#ef4444",
-              color: "white",
-              width: "22px",
-              height: "22px",
-              borderRadius: "50%",
-              fontSize: "0.75rem",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontWeight: "700",
-            }}
-          >
-            {reminders.length}
-          </span>
-        )}
-      </button>
+      {!showAddModal && (
+        <button
+          style={{
+            ...styles.fab,
+            right: "105px",
+            bottom: "24px",
+            width: "56px",
+            height: "56px",
+            fontSize: "1rem",
+            position: "fixed",
+          }}
+          onClick={() => setShowReminderManager(true)}
+        >
+          🔔
+          {reminders.length > 0 && (
+            <span
+              style={{
+                position: "absolute",
+                top: "-4px",
+                right: "-4px",
+                background: "#ef4444",
+                color: "white",
+                width: "22px",
+                height: "22px",
+                borderRadius: "50%",
+                fontSize: "0.75rem",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: "700",
+              }}
+            >
+              {reminders.length}
+            </span>
+          )}
+        </button>
+      )}
 
       {showReminderPopup && (
         <div style={styles.reminderOverlay}>
           <div style={styles.reminderCard}>
             <div
               style={{
-                width: 50,
-                height: 5,
-                background: "rgba(255,255,255,0.2)",
-                borderRadius: 999,
-                margin: "0 auto 18px",
+                width: "95%",
+                maxWidth: 500,
+                maxHeight: "85vh",
+                overflowY: "auto",
+                background: "#12121a",
+                borderRadius: 24,
+                padding: 20,
               }}
             />
             <h3 style={{ marginTop: 0 }}>🔔 Upcoming Bills</h3>
@@ -1341,6 +1415,21 @@ export default function Home() {
                   background: "rgba(255,255,255,0.05)",
                 }}
               >
+                <button
+                  onClick={() => markReminderPaid(r.id)}
+                  style={{
+                    marginTop: 10,
+                    width: "100%",
+                    background: "#22c55e",
+                    border: "none",
+                    borderRadius: 10,
+                    color: "white",
+                    padding: 10,
+                    fontWeight: 700,
+                  }}
+                >
+                  ✓ Mark Paid
+                </button>
                 <div>{r.title}</div>
 
                 <div
@@ -1421,6 +1510,126 @@ export default function Home() {
               value={reminderDay}
               onChange={(e) => setReminderDay(e.target.value)}
             />
+            <div
+              style={{
+                marginBottom: 15,
+                position: "relative",
+              }}
+            >
+              <div style={{ marginBottom: 8 }}>Repeat Type</div>
+
+              <select
+                value={repeatType}
+                onChange={(e) => setRepeatType(e.target.value)}
+                style={{
+                  ...styles.inp,
+                  width: "100%",
+                  marginBottom: 15,
+                  appearance: "none",
+                  WebkitAppearance: "none",
+                  cursor: "pointer",
+                  paddingRight: 40,
+                }}
+              >
+                <option value="monthly">Every Month</option>
+
+                <option value="custom">Specific Months</option>
+
+                <option value="one_time">One Time</option>
+              </select>
+
+              <span
+                style={{
+                  position: "absolute",
+                  right: 16,
+                  top: 48,
+                  color: "#a78bfa",
+                  pointerEvents: "none",
+                  fontSize: 12,
+                }}
+              >
+                ▼
+              </span>
+              {repeatType === "custom" && (
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(4,1fr)",
+                    gap: 6,
+                    marginBottom: 15,
+                  }}
+                >
+                  {[
+                    "Jan",
+                    "Feb",
+                    "Mar",
+                    "Apr",
+                    "May",
+                    "Jun",
+                    "Jul",
+                    "Aug",
+                    "Sep",
+                    "Oct",
+                    "Nov",
+                    "Dec",
+                  ].map((m, idx) => (
+                    <button
+                      key={m}
+                      type="button"
+                      style={{
+                        ...styles.catBtn,
+                        ...(selectedMonths.includes(idx + 1)
+                          ? styles.catBtnActive
+                          : {}),
+                      }}
+                      onClick={() => {
+                        if (selectedMonths.includes(idx + 1)) {
+                          setSelectedMonths(
+                            selectedMonths.filter((x) => x !== idx + 1),
+                          );
+                        } else {
+                          setSelectedMonths([...selectedMonths, idx + 1]);
+                        }
+                      }}
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {repeatType === "one_time" && (
+                <select
+                  value={oneTimeMonth}
+                  onChange={(e) => setOneTimeMonth(e.target.value)}
+                  style={{
+                    ...styles.inp,
+                    width: "100%",
+                    marginBottom: 15,
+                  }}
+                >
+                  <option value="">Select Month</option>
+
+                  {Array.from({ length: 24 }, (_, i) => {
+                    const date = new Date();
+                    date.setMonth(date.getMonth() + i);
+
+                    const value = `${date.getFullYear()}-${String(
+                      date.getMonth() + 1,
+                    ).padStart(2, "0")}`;
+
+                    return (
+                      <option key={value} value={value}>
+                        {date.toLocaleString("en-IN", {
+                          month: "long",
+                          year: "numeric",
+                        })}
+                      </option>
+                    );
+                  })}
+                </select>
+              )}
+            </div>
 
             <button
               style={{
@@ -1431,6 +1640,26 @@ export default function Home() {
             >
               ➕ Add Reminder
             </button>
+
+            {reminders.length > 0 && (
+              <>
+                <div
+                  style={{
+                    margin: "18px 0 12px",
+                    borderTop: "1px solid rgba(255,255,255,0.08)",
+                  }}
+                />
+
+                <h4
+                  style={{
+                    margin: "0 0 12px",
+                    color: "#a78bfa",
+                  }}
+                >
+                  Saved Bills
+                </h4>
+              </>
+            )}
 
             <div
               style={{
@@ -1446,6 +1675,8 @@ export default function Home() {
                     marginBottom: 8,
                     borderRadius: 10,
                     background: "rgba(255,255,255,0.05)",
+                    border: "1px solid rgba(167,139,250,0.15)",
+                    boxShadow: "0 4px 20px rgba(124,58,237,0.15)",
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "center",
@@ -1462,26 +1693,38 @@ export default function Home() {
                         opacity: 0.7,
                       }}
                     >
-                      Every month on {r.due_day}
+                      {r.repeat_type === "monthly" &&
+                        `Every month on ${r.due_day}`}
+
+                      {r.repeat_type === "custom" &&
+                        `Custom months on day ${r.due_day}`}
+
+                      {r.repeat_type === "one_time" &&
+                        `One time: ${r.one_time_month}`}
                     </div>
                   </div>
 
-                  <button
+                  <div
                     style={{
-                      background: "transparent",
-                      border: "none",
-                      fontSize: "1.1rem",
-                      cursor: "pointer",
-                    }}
-                    onClick={async () => {
-                      await supabase.from("reminders").delete().eq("id", r.id);
-
-                      fetchReminders();
-                      showToast("🗑️ Reminder Deleted");
+                      display: "flex",
+                      gap: 8,
                     }}
                   >
-                    🗑️
-                  </button>
+                    <button onClick={() => markReminderPaid(r.id)}>✅</button>
+
+                    <button
+                      onClick={async () => {
+                        await supabase
+                          .from("reminders")
+                          .delete()
+                          .eq("id", r.id);
+
+                        fetchReminders();
+                      }}
+                    >
+                      🗑️
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -2175,7 +2418,7 @@ const styles = {
     borderTopRightRadius: 24,
     padding: 20,
     color: "white",
-    maxHeight: "80vh",
+    maxHeight: "75vh",
     overflowY: "auto",
     animation: "slideUp 0.25s ease",
   },
