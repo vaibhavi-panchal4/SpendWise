@@ -59,7 +59,7 @@ export default function Signup() {
 
     setLoading(false);
 
-    window.location.href = "/";
+    window.location.href = "/app";
   };
 
   return (
