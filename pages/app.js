@@ -74,10 +74,15 @@ export default function Home() {
   const toastTimer = useRef(null);
   const nameRef = useRef(null);
   const [spaces, setSpaces] = useState([]);
-  const [selectedSpace, setSelectedSpace] = useState(null);
   const [showCreateSpace, setShowCreateSpace] = useState(false);
+  const [selectedSpace, setSelectedSpace] = useState(null);
+  const [spaceMenu, setSpaceMenu] = useState(null);
+  const [editingSpace, setEditingSpace] = useState(null);
   const [spaceName, setSpaceName] = useState("");
   const [spaceIcon, setSpaceIcon] = useState("📁");
+  const [showRenameSpace, setShowRenameSpace] = useState(false);
+  const [renameSpaceName, setRenameSpaceName] = useState("");
+  const [selectedEmoji, setSelectedEmoji] = useState("📁");
   const [announcements, setAnnouncements] = useState([]);
   const monthKey = getMonthKey(currentDate);
   const [reminderTitle, setReminderTitle] = useState("");
@@ -115,6 +120,62 @@ export default function Home() {
     setSpaceName("");
     setSpaceIcon("📁");
     setShowCreateSpace(false);
+
+    fetchSpaces();
+  };
+
+  const renameSpace = async () => {
+    if (!editingSpace) {
+      showToast("No space selected");
+      return;
+    }
+
+    if (!renameSpaceName.trim()) {
+      showToast("Enter space name");
+      return;
+    }
+
+    const { error } = await supabase
+      .from("spaces")
+      .update({
+        name: renameSpaceName,
+        icon: selectedEmoji,
+      })
+      .eq("id", editingSpace.id);
+
+    if (error) {
+      showToast("Failed");
+      return;
+    }
+
+    showToast("Space updated");
+
+    setShowRenameSpace(false);
+
+    setSpaceMenu(null);
+
+    setEditingSpace(null);
+
+    fetchSpaces();
+  };
+
+  const deleteSpace = async (spaceId) => {
+    await supabase.from("expenses").delete().eq("space_id", spaceId);
+
+    await supabase.from("budgets").delete().eq("space_id", spaceId);
+
+    await supabase.from("reminders").delete().eq("space_id", spaceId);
+
+    const { error } = await supabase.from("spaces").delete().eq("id", spaceId);
+
+    if (error) {
+      showToast("Failed");
+      return;
+    }
+
+    showToast("Space deleted");
+
+    setSpaceMenu(null);
 
     fetchSpaces();
   };
@@ -910,20 +971,39 @@ export default function Home() {
                 background:
                   selectedSpace === s.id ? "#7c3aed" : "rgba(255,255,255,0.05)",
                 color: "white",
-                cursor: "pointer",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
               }}
-              onClick={() => setSelectedSpace(s.id)}
             >
               <div
                 style={{
                   display: "flex",
-                  alignItems: "center",
                   gap: 10,
+                  alignItems: "center",
+                  cursor: "pointer",
+                  flex: 1,
                 }}
+                onClick={() => setSelectedSpace(s.id)}
               >
                 <span>{s.icon}</span>
                 <span>{s.name}</span>
               </div>
+
+              {s.name !== "Personal" && (
+                <button
+                  onClick={() => setSpaceMenu(s)}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: "#aaa",
+                    fontSize: 22,
+                    cursor: "pointer",
+                  }}
+                >
+                  ⋮
+                </button>
+              )}
             </div>
           ))}
 
@@ -2222,6 +2302,166 @@ export default function Home() {
                 width: "100%",
               }}
               onClick={() => setShowCreateSpace(false)}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {spaceMenu && (
+        <div style={styles.reminderOverlay} onClick={() => setSpaceMenu(null)}>
+          <div
+            style={styles.reminderSheet}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                textAlign: "center",
+                fontSize: "2rem",
+                marginBottom: 10,
+              }}
+            >
+              {spaceMenu.icon}
+            </div>
+
+            <h3
+              style={{
+                textAlign: "center",
+                marginBottom: 20,
+              }}
+            >
+              {spaceMenu.name}
+            </h3>
+
+            <button
+              style={styles.submitBtn}
+              onClick={() => {
+                setEditingSpace(spaceMenu);
+                setRenameSpaceName(spaceMenu.name);
+                setSelectedEmoji(spaceMenu.icon);
+                setShowRenameSpace(true);
+                setSpaceMenu(null);
+              }}
+            >
+              ✏️ Rename Space
+            </button>
+
+            <button
+              style={{
+                ...styles.submitBtn,
+                marginTop: 10,
+                background: "linear-gradient(135deg,#2563eb,#3b82f6)",
+              }}
+              onClick={() => {
+                setRenameSpaceName(spaceMenu.name);
+                setSelectedEmoji(spaceMenu.icon);
+                setEditingSpace(spaceMenu);
+                setShowRenameSpace(true);
+                setSpaceMenu(null);
+              }}
+            >
+              😀 Change Icon
+            </button>
+
+            <button
+              style={{
+                ...styles.submitBtn,
+                marginTop: 10,
+                background: "linear-gradient(135deg,#dc2626,#ef4444)",
+              }}
+              onClick={() => deleteSpace(spaceMenu.id)}
+            >
+              🗑 Delete Space
+            </button>
+
+            <button
+              style={{
+                ...styles.userChip,
+                width: "100%",
+                marginTop: 18,
+              }}
+              onClick={() => setSpaceMenu(null)}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showRenameSpace && (
+        <div style={styles.reminderOverlay}>
+          <div style={styles.reminderSheet}>
+            <h3>Rename Space</h3>
+
+            <input
+              style={{
+                ...styles.inp,
+                width: "100%",
+                marginBottom: 15,
+              }}
+              value={renameSpaceName}
+              onChange={(e) => setRenameSpaceName(e.target.value)}
+            />
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(5,1fr)",
+                gap: 8,
+                marginBottom: 18,
+              }}
+            >
+              {[
+                "🏠",
+                "💼",
+                "✈️",
+                "🎉",
+                "📁",
+                "❤️",
+                "🚗",
+                "🏖",
+                "🏋️",
+                "🍔",
+                "🎓",
+                "💰",
+                "🛒",
+                "🐶",
+                "🌍",
+              ].map((e) => (
+                <button
+                  key={e}
+                  onClick={() => setSelectedEmoji(e)}
+                  style={{
+                    fontSize: 24,
+                    padding: 10,
+                    borderRadius: 10,
+                    border:
+                      selectedEmoji === e
+                        ? "2px solid #a78bfa"
+                        : "1px solid rgba(255,255,255,0.08)",
+                    background: "rgba(255,255,255,0.05)",
+                  }}
+                >
+                  {e}
+                </button>
+              ))}
+            </div>
+
+            <button style={styles.submitBtn} onClick={renameSpace}>
+              Save
+            </button>
+
+            <button
+              style={{
+                ...styles.userChip,
+                width: "100%",
+                marginTop: 10,
+              }}
+              onClick={() => {
+                setShowRenameSpace(false);
+                setEditingSpace(null);
+              }}
             >
               Cancel
             </button>
