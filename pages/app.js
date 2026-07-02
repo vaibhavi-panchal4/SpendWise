@@ -73,8 +73,6 @@ export default function Home() {
   const [supportMessage, setSupportMessage] = useState("");
   const toastTimer = useRef(null);
   const nameRef = useRef(null);
-  const [featureTitle, setFeatureTitle] = useState("");
-  const [featureRequests, setFeatureRequests] = useState([]);
   const [spaces, setSpaces] = useState([]);
   const [selectedSpace, setSelectedSpace] = useState(null);
   const [showCreateSpace, setShowCreateSpace] = useState(false);
@@ -141,17 +139,6 @@ export default function Home() {
     if (!selectedSpace && data.length > 0) {
       setSelectedSpace(data[0].id);
     }
-  };
-
-  const fetchFeatureRequests = async () => {
-    const { data } = await supabase
-      .from("feature_requests")
-      .select("*")
-      .order("votes", {
-        ascending: false,
-      });
-
-    setFeatureRequests(data || []);
   };
 
   const fetchAnnouncements = async () => {
@@ -272,59 +259,6 @@ export default function Home() {
     }
   }, [currentUser, selectedSpace]);
 
-  const submitFeatureRequest = async () => {
-    if (!featureTitle.trim()) {
-      showToast("Enter feature name");
-      return;
-    }
-
-    const { error } = await supabase.from("feature_requests").insert({
-      user_id: currentUser.id,
-      title: featureTitle,
-    });
-
-    if (error) {
-      showToast("Failed");
-      return;
-    }
-
-    showToast("Feature submitted 🚀");
-
-    setFeatureTitle("");
-
-    fetchFeatureRequests();
-  };
-
-  const voteFeature = async (featureId, currentVotes) => {
-    const { data: existing } = await supabase
-      .from("feature_votes")
-      .select("id")
-      .eq("user_id", currentUser.id)
-      .eq("feature_id", featureId)
-      .maybeSingle();
-
-    if (existing) {
-      showToast("You already voted 👍");
-      return;
-    }
-
-    await supabase.from("feature_votes").insert({
-      user_id: currentUser.id,
-      feature_id: featureId,
-    });
-
-    await supabase
-      .from("feature_requests")
-      .update({
-        votes: currentVotes + 1,
-      })
-      .eq("id", featureId);
-
-    fetchFeatureRequests();
-
-    showToast("Vote added 🚀");
-  };
-
   useEffect(() => {
     const getUser = async () => {
       const { data } = await supabase.auth.getUser();
@@ -367,7 +301,6 @@ export default function Home() {
     if (!currentUser) return;
 
     fetchSpaces();
-    fetchFeatureRequests();
   }, [currentUser]);
 
   useEffect(() => {
@@ -398,17 +331,7 @@ export default function Home() {
           fetchBudget();
         },
       )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "feature_requests",
-        },
-        () => {
-          fetchFeatureRequests();
-        },
-      )
+
       .on(
         "postgres_changes",
         {
@@ -568,7 +491,7 @@ export default function Home() {
   };
 
   const saveBudget = async (val) => {
-    if (!currentUser) return;
+    if (!currentUser || !selectedSpace) return;
 
     const num = parseFloat(val) || 0;
 
@@ -579,7 +502,7 @@ export default function Home() {
         user_id: currentUser.id,
         space_id: selectedSpace,
         month: monthKey,
-        amount: Number(budget),
+        amount: num,
       },
       {
         onConflict: "user_id,month,space_id",
@@ -588,7 +511,7 @@ export default function Home() {
 
     if (error) {
       console.log(error);
-      showToast("Budget save failed");
+      showToast(error.message);
     } else {
       showToast("Budget saved");
     }
@@ -605,6 +528,11 @@ export default function Home() {
       return;
     }
     setLoading(true);
+
+    if (!selectedSpace) {
+      showToast("Please select a space");
+      return;
+    }
     const { data, error } = await supabase
       .from("expenses")
       .insert({
@@ -623,14 +551,11 @@ export default function Home() {
         date: getLocalDate(),
       })
       .select();
+    setExpenses((prev) => [data[0], ...prev]);
     if (error) {
       console.log(error);
       showToast(error.message);
       setLoading(false);
-      return;
-    }
-    if (!selectedSpace) {
-      showToast("Please select a space");
       return;
     }
     showToast(`✅ Added ₹${amt.toLocaleString("en-IN")} · ${selectedCat}`);
@@ -1749,22 +1674,6 @@ export default function Home() {
           )}
         </button>
       )}
-      {!showAddModal && (
-        <button
-          style={{
-            ...styles.fab,
-            right: "190px",
-            bottom: "24px",
-            width: "56px",
-            height: "56px",
-            fontSize: "1rem",
-            position: "fixed",
-          }}
-          onClick={() => setShowHelp(true)}
-        >
-          ❓
-        </button>
-      )}
 
       {showReminderPopup && (
         <div style={styles.reminderOverlay}>
@@ -2152,72 +2061,6 @@ export default function Home() {
             </div>
 
             <h4>Contact Us</h4>
-
-            <h4 style={{ marginTop: 24 }}>🚀 Feature Requests</h4>
-
-            <input
-              value={featureTitle}
-              onChange={(e) => setFeatureTitle(e.target.value)}
-              placeholder="Suggest a feature"
-              style={{
-                ...styles.inp,
-                width: "100%",
-                marginBottom: 10,
-              }}
-            />
-
-            <button style={styles.submitBtn} onClick={submitFeatureRequest}>
-              Submit Feature
-            </button>
-
-            <div
-              style={{
-                marginTop: 20,
-              }}
-            >
-              {featureRequests.map((f) => (
-                <div
-                  key={f.id}
-                  style={{
-                    padding: 12,
-                    marginBottom: 8,
-                    background: "rgba(255,255,255,0.05)",
-                    borderRadius: 12,
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
-                >
-                  <div>
-                    <div style={{ fontWeight: 700 }}>{f.title}</div>
-
-                    <div
-                      style={{
-                        opacity: 0.7,
-                        fontSize: 13,
-                      }}
-                    >
-                      Status: {f.status || "Planned"}
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => voteFeature(f.id, f.votes || 0)}
-                    style={{
-                      background: "#7c3aed",
-                      border: "none",
-                      borderRadius: 10,
-                      color: "white",
-                      padding: "8px 12px",
-                      fontWeight: 700,
-                      cursor: "pointer",
-                    }}
-                  >
-                    👍 {f.votes || 0}
-                  </button>
-                </div>
-              ))}
-            </div>
 
             <select
               value={supportType}
