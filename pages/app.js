@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import Head from "next/head";
 import { supabase } from "../lib/supabase";
+import { Analytics } from "@vercel/analytics/react";
 
 const CATS = {
   Food: { icon: "🍜", color: "#a78bfa", bg: "rgba(167,139,250,0.12)" },
@@ -26,8 +27,6 @@ const PAYMENTS = [
     icon: "💳",
   },
 ];
-
-const USERS = ["💜 You", "💙 Him"];
 
 function getMonthKey(d) {
   return `${d.getFullYear()}-${d.getMonth() + 1}`;
@@ -66,21 +65,28 @@ export default function Home() {
   const [showReminderPopup, setShowReminderPopup] = useState(false);
   const [reminders, setReminders] = useState([]);
   const [dueReminders, setDueReminders] = useState([]);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingStep, setOnboardingStep] = useState(0);
   const [showReminderManager, setShowReminderManager] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
+  const [supportType, setSupportType] = useState("Bug");
+  const [supportMessage, setSupportMessage] = useState("");
   const toastTimer = useRef(null);
   const nameRef = useRef(null);
-
+  const [featureTitle, setFeatureTitle] = useState("");
+  const [featureRequests, setFeatureRequests] = useState([]);
+  const [spaces, setSpaces] = useState([]);
+  const [selectedSpace, setSelectedSpace] = useState(null);
+  const [showCreateSpace, setShowCreateSpace] = useState(false);
+  const [spaceName, setSpaceName] = useState("");
+  const [spaceIcon, setSpaceIcon] = useState("📁");
+  const [announcements, setAnnouncements] = useState([]);
   const monthKey = getMonthKey(currentDate);
-
   const [reminderTitle, setReminderTitle] = useState("");
-
   const [reminderAmount, setReminderAmount] = useState("");
-
   const [reminderDay, setReminderDay] = useState("");
   const [repeatType, setRepeatType] = useState("monthly");
-
   const [selectedMonths, setSelectedMonths] = useState([]);
-
   const [oneTimeMonth, setOneTimeMonth] = useState("");
 
   const showToast = useCallback((msg) => {
@@ -88,6 +94,77 @@ export default function Home() {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(null), 2500);
   }, []);
+
+  const createSpace = async () => {
+    if (!spaceName.trim()) {
+      showToast("Enter space name");
+      return;
+    }
+
+    const { error } = await supabase.from("spaces").insert({
+      user_id: currentUser.id,
+      name: spaceName.trim(),
+      icon: spaceIcon,
+    });
+
+    if (error) {
+      showToast("Failed");
+      return;
+    }
+
+    showToast("Space created 🎉");
+
+    setSpaceName("");
+    setSpaceIcon("📁");
+    setShowCreateSpace(false);
+
+    fetchSpaces();
+  };
+
+  const fetchSpaces = async () => {
+    if (!currentUser) return;
+
+    const { data, error } = await supabase
+
+      .from("spaces")
+
+      .select("*")
+
+      .eq("user_id", currentUser.id)
+
+      .order("created_at");
+
+    if (error) return;
+
+    setSpaces(data);
+
+    if (!selectedSpace && data.length > 0) {
+      setSelectedSpace(data[0].id);
+    }
+  };
+
+  const fetchFeatureRequests = async () => {
+    const { data } = await supabase
+      .from("feature_requests")
+      .select("*")
+      .order("votes", {
+        ascending: false,
+      });
+
+    setFeatureRequests(data || []);
+  };
+
+  const fetchAnnouncements = async () => {
+    const { data } = await supabase
+      .from("announcements")
+      .select("*")
+      .eq("active", true)
+      .order("created_at", {
+        ascending: false,
+      });
+
+    setAnnouncements(data || []);
+  };
 
   // Fetch expenses for current month
   const fetchExpenses = useCallback(async () => {
@@ -109,11 +186,13 @@ export default function Home() {
       .from("expenses")
       .select("*")
       .eq("user_id", currentUser.id)
+
+      .eq("space_id", selectedSpace)
       .gte("date", start)
       .lte("date", end)
       .order("created_at", { ascending: false });
     if (!error) setExpenses(data || []);
-  }, [currentDate, currentUser]);
+  }, [currentDate, currentUser, selectedSpace]);
 
   const addReminder = async () => {
     const { error } = await supabase.from("reminders").insert({
@@ -123,6 +202,7 @@ export default function Home() {
       due_day: Number(reminderDay),
 
       repeat_type: repeatType,
+      space_id: selectedSpace,
 
       months: repeatType === "custom" ? selectedMonths : null,
 
@@ -156,6 +236,8 @@ export default function Home() {
       .from("budgets")
       .select("*")
       .eq("user_id", currentUser.id)
+
+      .eq("space_id", selectedSpace)
       .eq("month", monthKey)
       .order("updated_at", { ascending: false })
       .limit(1);
@@ -172,7 +254,7 @@ export default function Home() {
       setBudget(0);
       setBudgetInput("");
     }
-  }, [monthKey, currentUser]);
+  }, [monthKey, currentUser, selectedSpace]);
 
   const fetchReminders = useCallback(async () => {
     if (!currentUser) return;
@@ -181,12 +263,67 @@ export default function Home() {
       .from("reminders")
       .select("*")
       .eq("user_id", currentUser.id)
+
+      .eq("space_id", selectedSpace)
       .eq("active", true);
 
     if (!error) {
       setReminders(data || []);
     }
-  }, [currentUser]);
+  }, [currentUser, selectedSpace]);
+
+  const submitFeatureRequest = async () => {
+    if (!featureTitle.trim()) {
+      showToast("Enter feature name");
+      return;
+    }
+
+    const { error } = await supabase.from("feature_requests").insert({
+      user_id: currentUser.id,
+      title: featureTitle,
+    });
+
+    if (error) {
+      showToast("Failed");
+      return;
+    }
+
+    showToast("Feature submitted 🚀");
+
+    setFeatureTitle("");
+
+    fetchFeatureRequests();
+  };
+
+  const voteFeature = async (featureId, currentVotes) => {
+    const { data: existing } = await supabase
+      .from("feature_votes")
+      .select("id")
+      .eq("user_id", currentUser.id)
+      .eq("feature_id", featureId)
+      .maybeSingle();
+
+    if (existing) {
+      showToast("You already voted 👍");
+      return;
+    }
+
+    await supabase.from("feature_votes").insert({
+      user_id: currentUser.id,
+      feature_id: featureId,
+    });
+
+    await supabase
+      .from("feature_requests")
+      .update({
+        votes: currentVotes + 1,
+      })
+      .eq("id", featureId);
+
+    fetchFeatureRequests();
+
+    showToast("Vote added 🚀");
+  };
 
   useEffect(() => {
     const getUser = async () => {
@@ -194,6 +331,18 @@ export default function Home() {
 
       if (data.user) {
         setCurrentUser(data.user);
+
+        const { data: settings } = await supabase
+          .from("user_settings")
+          .select("onboarding_completed")
+          .eq("user_id", data.user.id)
+          .single();
+
+        if (!settings?.onboarding_completed) {
+          setTimeout(() => {
+            setShowOnboarding(true);
+          }, 700);
+        }
       }
 
       setLoadingUser(false);
@@ -215,12 +364,20 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (currentUser) {
-      fetchExpenses();
-      fetchBudget();
-      fetchReminders();
-    }
-  }, [currentUser, fetchExpenses, fetchBudget, fetchReminders]);
+    if (!currentUser) return;
+
+    fetchSpaces();
+    fetchFeatureRequests();
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (!selectedSpace) return;
+
+    fetchExpenses();
+    fetchBudget();
+    fetchReminders();
+  }, [selectedSpace, currentDate]);
+
   // Realtime subscription
   useEffect(() => {
     const channel = supabase
@@ -239,6 +396,28 @@ export default function Home() {
         { event: "*", schema: "public", table: "budgets" },
         () => {
           fetchBudget();
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "feature_requests",
+        },
+        () => {
+          fetchFeatureRequests();
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "announcements",
+        },
+        () => {
+          fetchAnnouncements();
         },
       )
       .subscribe();
@@ -322,6 +501,24 @@ export default function Home() {
     .filter((e) => e.payment_mode === "UPI")
     .reduce((s, e) => s + Number(e.amount), 0);
 
+  const daysInMonth = new Date(
+    currentDate.getFullYear(),
+    currentDate.getMonth() + 1,
+    0,
+  ).getDate();
+
+  const avgDailySpend = Math.round(total / daysInMonth);
+
+  const spendingByDay = {};
+
+  expenses.forEach((e) => {
+    spendingByDay[e.date] = (spendingByDay[e.date] || 0) + Number(e.amount);
+  });
+
+  const highestDay = Object.entries(spendingByDay).sort(
+    (a, b) => b[1] - a[1],
+  )[0];
+
   const cashTotal = expenses
     .filter((e) => e.payment_mode === "Cash")
     .reduce((s, e) => s + Number(e.amount), 0);
@@ -380,12 +577,12 @@ export default function Home() {
     const { error } = await supabase.from("budgets").upsert(
       {
         user_id: currentUser.id,
+        space_id: selectedSpace,
         month: monthKey,
-        amount: num,
-        updated_at: new Date().toISOString(),
+        amount: Number(budget),
       },
       {
-        onConflict: "user_id,month",
+        onConflict: "user_id,month,space_id",
       },
     );
 
@@ -408,17 +605,32 @@ export default function Home() {
       return;
     }
     setLoading(true);
-    const { error } = await supabase.from("expenses").insert({
-      name: expName.trim(),
-      amount: amt,
-      category: selectedCat,
-      user_id: currentUser.id,
-      payment_mode: paymentMode,
-      date: getLocalDate(),
-    });
-    setLoading(false);
+    const { data, error } = await supabase
+      .from("expenses")
+      .insert({
+        user_id: currentUser.id,
+
+        space_id: selectedSpace,
+
+        name: expName,
+
+        amount: amt,
+
+        category: selectedCat,
+
+        payment_mode: paymentMode,
+
+        date: getLocalDate(),
+      })
+      .select();
     if (error) {
-      showToast("❌ Error saving — check Supabase setup");
+      console.log(error);
+      showToast(error.message);
+      setLoading(false);
+      return;
+    }
+    if (!selectedSpace) {
+      showToast("Please select a space");
       return;
     }
     showToast(`✅ Added ₹${amt.toLocaleString("en-IN")} · ${selectedCat}`);
@@ -426,6 +638,7 @@ export default function Home() {
     setExpAmt("");
     setShowAddModal(false);
     nameRef.current?.focus();
+    setLoading(false);
   };
 
   const updateExpense = async () => {
@@ -480,6 +693,35 @@ export default function Home() {
     showToast("✅ Bill marked paid");
   };
 
+  const uniqueDays = [...new Set(expenses.map((e) => e.date))].sort();
+
+  const currentSpace = spaces.find((s) => s.id === selectedSpace);
+
+  const submitSupportRequest = async () => {
+    if (!supportMessage.trim()) {
+      showToast("Enter message");
+      return;
+    }
+
+    const { error } = await supabase.from("support_requests").insert({
+      user_id: currentUser.id,
+      type: supportType,
+      message: supportMessage,
+    });
+
+    if (error) {
+      showToast("Failed to submit");
+      return;
+    }
+
+    setSupportMessage("");
+    setSupportType("Bug");
+
+    showToast("✅ Submitted");
+
+    setShowHelp(false);
+  };
+
   const deleteExpense = async (id) => {
     setExpenses((prev) => prev.filter((e) => e.id !== id));
     await supabase.from("expenses").delete().eq("id", id);
@@ -511,7 +753,9 @@ export default function Home() {
     filterCat === "All"
       ? expenses
       : expenses.filter((e) => e.category === filterCat)
-  ).filter((e) => e.name.toLowerCase().includes(search.toLowerCase()));
+  ).filter((e) =>
+    (e.name || e.title || "").toLowerCase().includes(search.toLowerCase()),
+  );
 
   // User picker screen
   /*if (user === null) {
@@ -637,6 +881,39 @@ export default function Home() {
 
     return null;
   }
+
+  const finishOnboarding = async () => {
+    await supabase.from("user_settings").upsert({
+      user_id: currentUser.id,
+      onboarding_completed: true,
+    });
+
+    setShowOnboarding(false);
+  };
+
+  const onboardingScreens = [
+    {
+      icon: "💸",
+      title: "Welcome to SpendWise",
+      text: "Track every expense and know where your money goes.",
+    },
+    {
+      icon: "🎯",
+      title: "Set Budgets",
+      text: "Create monthly budgets and avoid overspending.",
+    },
+    {
+      icon: "📈",
+      title: "Smart Insights",
+      text: "Understand spending patterns with charts and analytics.",
+    },
+    {
+      icon: "🔔",
+      title: "Bill Reminders",
+      text: "Never miss important payments again.",
+    },
+  ];
+
   return (
     <>
       <Head>
@@ -678,9 +955,83 @@ export default function Home() {
       </div>
 
       <div style={styles.app} className="app-mobile">
+        <div
+          style={{
+            marginBottom: 20,
+            background: "#12121a",
+            borderRadius: 16,
+            padding: 16,
+            border: "1px solid rgba(255,255,255,0.08)",
+          }}
+        >
+          <div
+            style={{
+              fontWeight: 700,
+              marginBottom: 12,
+              color: "#a78bfa",
+            }}
+          >
+            Spaces
+          </div>
+
+          {spaces.map((s) => (
+            <div
+              key={s.id}
+              style={{
+                width: "100%",
+                marginBottom: 8,
+                padding: 12,
+                borderRadius: 12,
+                background:
+                  selectedSpace === s.id ? "#7c3aed" : "rgba(255,255,255,0.05)",
+                color: "white",
+                cursor: "pointer",
+              }}
+              onClick={() => setSelectedSpace(s.id)}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                }}
+              >
+                <span>{s.icon}</span>
+                <span>{s.name}</span>
+              </div>
+            </div>
+          ))}
+
+          <button
+            style={{
+              width: "100%",
+              padding: 12,
+              borderRadius: 12,
+              border: "none",
+              background: "#22c55e",
+              color: "white",
+              fontWeight: 700,
+            }}
+            onClick={() => setShowCreateSpace(true)}
+          >
+            + Create Space
+          </button>
+        </div>
         {/* Topbar */}
         <div style={styles.topbar} className="topbar-mobile">
           <div style={styles.logoSm}>
+            <div
+              style={{
+                color: "#a78bfa",
+                fontSize: 12,
+                marginTop: 4,
+              }}
+            >
+              {/* {!selectedSpace ? "Personal Mode" : `Space Mode`} */}
+              {currentSpace?.icon}
+
+              {currentSpace?.name}
+            </div>
             <span style={{ color: "#ffffff" }}>spend</span>
             <span style={{ color: "#a78bfa" }}>wise</span> 💸
           </div>
@@ -771,7 +1122,7 @@ export default function Home() {
               }}
             >
               <div style={{ fontSize: "1.2rem", marginBottom: 6 }}>
-                {s.icon}
+                {s.icon} {s.name}
               </div>
               <div style={styles.statLabel}>{s.label}</div>
               <div
@@ -946,6 +1297,7 @@ export default function Home() {
                 onKeyDown={(e) => e.key === "Enter" && addExpense()}
               />
             </div>
+
             <div
               style={{
                 display: "flex",
@@ -1100,6 +1452,7 @@ export default function Home() {
               ) : (
                 filtered.map((e) => {
                   const c = CATS[e.category] || CATS.Other;
+                  const categoryName = e.category || "Other";
                   const d = new Date(e.date + "T00:00:00");
                   const dateStr = d.toLocaleDateString("en-IN", {
                     day: "numeric",
@@ -1139,7 +1492,7 @@ export default function Home() {
                           style={styles.expName2}
                           className="transaction-name-mobile"
                         >
-                          {e.name}
+                          {e.name || e.title}
                         </div>
                         <div
                           style={{
@@ -1150,7 +1503,7 @@ export default function Home() {
                             gap: 8,
                           }}
                         >
-                          <span style={{ color: c.color }}>{e.category}</span>
+                          <span style={{ color: c.color }}>{categoryName}</span>
                           <span>
                             •{" "}
                             {e.payment_mode === "UPI"
@@ -1199,7 +1552,7 @@ export default function Home() {
                           style={styles.editBtn}
                           onClick={() => {
                             setEditingExpense(e);
-                            setExpName(e.name);
+                            setExpName(e.name || e.title);
                             setExpAmt(e.amount);
                             setSelectedCat(e.category);
                             setPaymentMode(e.payment_mode);
@@ -1247,6 +1600,14 @@ export default function Home() {
               }}
             >
               <div style={styles.sectionLabel}>Insights</div>
+
+              <p style={{ color: "#f0eef8" }}>
+                📈 Avg Daily Spend: ₹{avgDailySpend}
+              </p>
+              <p style={{ color: "#f0eef8" }}>
+                🔥 Highest Spend Day:{" "}
+                {highestDay ? `${highestDay[0]} (₹${highestDay[1]})` : "N/A"}
+              </p>
 
               <p style={{ color: "#f0eef8" }}>
                 🏆 Top Category: {topCat?.[0] || "None"}
@@ -1386,6 +1747,22 @@ export default function Home() {
               {reminders.length}
             </span>
           )}
+        </button>
+      )}
+      {!showAddModal && (
+        <button
+          style={{
+            ...styles.fab,
+            right: "190px",
+            bottom: "24px",
+            width: "56px",
+            height: "56px",
+            fontSize: "1rem",
+            position: "fixed",
+          }}
+          onClick={() => setShowHelp(true)}
+        >
+          ❓
         </button>
       )}
 
@@ -1742,6 +2119,273 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      {showHelp && (
+        <div style={styles.reminderOverlay}>
+          <div style={styles.reminderSheet}>
+            <h3>❓ Help & Support</h3>
+
+            <div
+              style={{
+                marginBottom: 20,
+              }}
+            >
+              <details>
+                <summary>How do I add an expense?</summary>
+                Tap the + button and fill details.
+              </details>
+
+              <details>
+                <summary>How do budgets work?</summary>
+                Set a monthly budget and SpendWise tracks progress.
+              </details>
+
+              <details>
+                <summary>How do reminders work?</summary>
+                Add recurring bills and get notified before due dates.
+              </details>
+
+              <details>
+                <summary>Is my data secure?</summary>
+                Yes. Your data is stored securely in your own account.
+              </details>
+            </div>
+
+            <h4>Contact Us</h4>
+
+            <h4 style={{ marginTop: 24 }}>🚀 Feature Requests</h4>
+
+            <input
+              value={featureTitle}
+              onChange={(e) => setFeatureTitle(e.target.value)}
+              placeholder="Suggest a feature"
+              style={{
+                ...styles.inp,
+                width: "100%",
+                marginBottom: 10,
+              }}
+            />
+
+            <button style={styles.submitBtn} onClick={submitFeatureRequest}>
+              Submit Feature
+            </button>
+
+            <div
+              style={{
+                marginTop: 20,
+              }}
+            >
+              {featureRequests.map((f) => (
+                <div
+                  key={f.id}
+                  style={{
+                    padding: 12,
+                    marginBottom: 8,
+                    background: "rgba(255,255,255,0.05)",
+                    borderRadius: 12,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <div>
+                    <div style={{ fontWeight: 700 }}>{f.title}</div>
+
+                    <div
+                      style={{
+                        opacity: 0.7,
+                        fontSize: 13,
+                      }}
+                    >
+                      Status: {f.status || "Planned"}
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => voteFeature(f.id, f.votes || 0)}
+                    style={{
+                      background: "#7c3aed",
+                      border: "none",
+                      borderRadius: 10,
+                      color: "white",
+                      padding: "8px 12px",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                    }}
+                  >
+                    👍 {f.votes || 0}
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <select
+              value={supportType}
+              onChange={(e) => setSupportType(e.target.value)}
+              style={{
+                ...styles.inp,
+                width: "100%",
+                marginBottom: 10,
+              }}
+            >
+              <option>Bug</option>
+
+              <option>Feature Request</option>
+
+              <option>Feedback</option>
+            </select>
+
+            <textarea
+              value={supportMessage}
+              onChange={(e) => setSupportMessage(e.target.value)}
+              placeholder="Describe your issue..."
+              style={{
+                ...styles.inp,
+                width: "100%",
+                minHeight: 120,
+                resize: "none",
+                marginBottom: 10,
+              }}
+            />
+
+            <button style={styles.submitBtn} onClick={submitSupportRequest}>
+              Submit
+            </button>
+
+            <button
+              style={{
+                ...styles.userChip,
+                width: "100%",
+                marginTop: 10,
+              }}
+              onClick={() => setShowHelp(false)}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showOnboarding && (
+        <div style={styles.onboardingOverlay}>
+          <div style={styles.onboardingCard}>
+            <div style={{ fontSize: "4rem" }}>
+              {onboardingScreens[onboardingStep].icon}
+            </div>
+
+            <h2>{onboardingScreens[onboardingStep].title}</h2>
+
+            <p
+              style={{
+                color: "rgba(255,255,255,0.7)",
+                textAlign: "center",
+                lineHeight: 1.6,
+              }}
+            >
+              {onboardingScreens[onboardingStep].text}
+            </p>
+
+            <div
+              style={{
+                display: "flex",
+                gap: 8,
+                marginTop: 20,
+              }}
+            >
+              {onboardingScreens.map((_, i) => (
+                <div
+                  key={i}
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: "50%",
+                    background:
+                      onboardingStep === i
+                        ? "#a78bfa"
+                        : "rgba(255,255,255,0.2)",
+                  }}
+                />
+              ))}
+            </div>
+
+            <button
+              style={{
+                ...styles.submitBtn,
+                marginTop: 24,
+              }}
+              onClick={() => {
+                if (onboardingStep === onboardingScreens.length - 1) {
+                  finishOnboarding();
+                } else {
+                  setOnboardingStep((s) => s + 1);
+                }
+              }}
+            >
+              {onboardingStep === onboardingScreens.length - 1
+                ? "Get Started 🚀"
+                : "Next →"}
+            </button>
+
+            <button
+              style={{
+                marginTop: 12,
+                background: "transparent",
+                border: "none",
+                color: "rgba(255,255,255,0.5)",
+              }}
+              onClick={finishOnboarding}
+            >
+              Skip
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showCreateSpace && (
+        <div style={styles.reminderOverlay}>
+          <div style={styles.reminderSheet}>
+            <h3>Create Space</h3>
+
+            <input
+              style={{
+                ...styles.inp,
+                width: "100%",
+                marginBottom: 12,
+              }}
+              placeholder="Space Name"
+              value={spaceName}
+              onChange={(e) => setSpaceName(e.target.value)}
+            />
+
+            <input
+              value={spaceIcon}
+              onChange={(e) => setSpaceIcon(e.target.value)}
+              placeholder="🏠"
+            />
+
+            <button
+              style={{
+                ...styles.submitBtn,
+                marginBottom: 10,
+              }}
+              onClick={createSpace}
+            >
+              Create
+            </button>
+
+            <button
+              style={{
+                ...styles.userChip,
+                width: "100%",
+              }}
+              onClick={() => setShowCreateSpace(false)}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Toast */}
       {toast && <div style={styles.toast}>{toast}</div>}
 
@@ -2388,6 +3032,28 @@ const styles = {
     zIndex: 999,
     whiteSpace: "nowrap",
     boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+  },
+  onboardingOverlay: {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(0,0,0,0.65)",
+    backdropFilter: "blur(10px)",
+    zIndex: 99999,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  onboardingCard: {
+    width: "90%",
+    maxWidth: 420,
+    background: "#12121a",
+    borderRadius: 28,
+    padding: "2rem",
+    color: "white",
+    textAlign: "center",
+    border: "1px solid rgba(255,255,255,0.08)",
+    boxShadow: "0 20px 80px rgba(0,0,0,0.5)",
   },
   reminderOverlay: {
     position: "fixed",
